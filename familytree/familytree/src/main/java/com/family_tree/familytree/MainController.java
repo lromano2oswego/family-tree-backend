@@ -73,11 +73,16 @@ public class MainController {
     public @ResponseBody String addFamilyMember(@RequestParam String name,
                                                 @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date birthdate,
                                                 @RequestParam Gender gender,  // Gender is already of type Gender
+                                                @RequestParam Integer userId,
                                                 @RequestParam Integer treeId,
                                                 @RequestParam Integer addedById,
                                                 @RequestParam(required = false) String additionalInfo) {
         FamilyTree familyTree = familyTreeRepository.findById(treeId)
                 .orElseThrow(() -> new RuntimeException("Family tree not found"));
+
+        // Find the user who owns this family member
+        User owner = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Owner not found"));
 
         User addedBy = userRepository.findById(addedById)
                 .orElseThrow(() -> new RuntimeException("User not found"));
