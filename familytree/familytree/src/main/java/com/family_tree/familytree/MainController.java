@@ -3,6 +3,7 @@ package com.family_tree.familytree;
 import java.util.Date;
 import com.family_tree.enums.Gender;
 import com.family_tree.enums.PrivacySetting;
+import com.family_tree.enums.SuggestionStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
@@ -25,6 +26,9 @@ public class MainController {
 
     @Autowired
     private FamilyMemberRepository familyMemberRepository;
+
+    @Autowired
+    private SuggestEditRepository suggestEditRepository;
 
     // User-related methods
     @PostMapping(path="/add") // Map ONLY POST Requests
@@ -98,4 +102,41 @@ public class MainController {
         familyMemberRepository.save(familyMember);
         return "Family Member Saved";
     }
+
+    @GetMapping("/allFamilyMembers")
+    public @ResponseBody Iterable<FamilyMember> getAllFamilyMembers() {
+        return familyMemberRepository.findAll();
+    }
+
+    //SuggestEdit-related methods
+    @PostMapping("/addSuggestedEdit")
+    public @ResponseBody String addSuggestedEdit(@RequestParam Integer memberId,
+                                                 @RequestParam Integer suggestedById,
+                                                 @RequestParam String fieldName,
+                                                 @RequestParam String oldValue,
+                                                 @RequestParam String newValue) {
+        FamilyMember member = familyMemberRepository.findById(memberId)
+                .orElseThrow(() -> new RuntimeException("Family member not found"));
+
+        User suggestedBy = userRepository.findById(suggestedById)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        SuggestEdit suggestedEdit = new SuggestEdit();
+        suggestedEdit.setMember(member);
+        suggestedEdit.setSuggestedBy(suggestedBy);
+        suggestedEdit.setFieldName(fieldName);
+        suggestedEdit.setOldValue(oldValue);
+        suggestedEdit.setNewValue(newValue);
+        suggestedEdit.setSuggestionStatus(SuggestionStatus.Pending);  // Default status
+
+        suggestEditRepository.save(suggestedEdit);
+        return "Suggested Edit Saved";
+    }
+
+    // Method to retrieve all suggested edits
+    @GetMapping("/allSuggestedEdits")
+    public @ResponseBody Iterable<SuggestEdit> getAllSuggestedEdits() {
+        return suggestEditRepository.findAll();
+    }
+
 }
