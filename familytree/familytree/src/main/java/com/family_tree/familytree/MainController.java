@@ -1,9 +1,13 @@
 package com.family_tree.familytree;
 
+import java.io.IOException;
 import java.util.Date;
 import com.family_tree.enums.Gender;
 import com.family_tree.enums.PrivacySetting;
 import com.family_tree.enums.SuggestionStatus;
+import com.family_tree.enums.RelationshipType;
+import com.family_tree.enums.Role;
+import com.family_tree.enums.Status;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
@@ -12,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 
 @Controller // This means that this class is a Controller
 @RequestMapping(path="/demo") // This means URL's start with /demo (after Application path)
@@ -29,6 +34,15 @@ public class MainController {
 
     @Autowired
     private SuggestEditRepository suggestEditRepository;
+
+    @Autowired
+    private RelationshipRepository relationshipRepository;
+
+    @Autowired
+    private AttachmentRepository attachmentRepository;
+
+    @Autowired
+    private CollaborationRepository collaborationRepository;
 
     // User-related methods
     @PostMapping(path="/add") // Map ONLY POST Requests
@@ -103,6 +117,7 @@ public class MainController {
         return "Family Member Saved";
     }
 
+    //Method to retrieve all family members
     @GetMapping("/allFamilyMembers")
     public @ResponseBody Iterable<FamilyMember> getAllFamilyMembers() {
         return familyMemberRepository.findAll();
@@ -137,6 +152,97 @@ public class MainController {
     @GetMapping("/allSuggestedEdits")
     public @ResponseBody Iterable<SuggestEdit> getAllSuggestedEdits() {
         return suggestEditRepository.findAll();
+    }
+
+    // Relationship-related methods
+    @PostMapping("/addRelationship")
+    public @ResponseBody String addRelationship(@RequestParam Integer treeId,
+                                                @RequestParam Integer member1Id,
+                                                @RequestParam Integer member2Id,
+                                                @RequestParam RelationshipType relationship) {
+        FamilyTree familyTree = familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new RuntimeException("Family tree not found"));
+
+        FamilyMember member1 = familyMemberRepository.findById(member1Id)
+                .orElseThrow(() -> new RuntimeException("Family member 1 not found"));
+
+        FamilyMember member2 = familyMemberRepository.findById(member2Id)
+                .orElseThrow(() -> new RuntimeException("Family member 2 not found"));
+
+        Relationship rel = new Relationship();
+        rel.setFamilyTree(familyTree);
+        rel.setMember1(member1);
+        rel.setMember2(member2);
+        rel.setRelationship(relationship);
+
+        relationshipRepository.save(rel);
+        return "Relationship Saved";
+    }
+
+    @GetMapping("/allRelationships")
+    public @ResponseBody Iterable<Relationship> getAllRelationships() {
+        return relationshipRepository.findAll();
+    }
+
+    //Attachment-related methods
+    @PostMapping("/addAttachment")
+    public @ResponseBody String addAttachment(
+            @RequestParam Integer memberId,
+            @RequestParam String typeOfFile,
+            @RequestParam MultipartFile fileData, // MultipartFile to handle binary data upload
+            @RequestParam Integer uploadedById) {
+
+        // Find the family member to whom this attachment will be associated
+        FamilyMember member = familyMemberRepository.findById(memberId)
+                .orElseThrow(() -> new RuntimeException("Family member not found"));
+
+        // Find the user who uploaded this file
+        User uploadedBy = userRepository.findById(uploadedById)
+                .orElseThrow(() -> new RuntimeException("Uploader not found"));
+
+        // Create a new attachment
+        Attachment attachment = new Attachment();
+        attachment.setMember(member);
+        attachment.setTypeOfFile(typeOfFile);
+
+        try {
+            // Set the file data from the MultipartFile input
+            attachment.setFileData(fileData.getBytes());
+        } catch (IOException e) {
+            return "Failed to read file data";
+        }
+
+        attachment.setUploadedBy(uploadedBy);
+
+        // Save the attachment to the database
+        attachmentRepository.save(attachment);
+        return "Attachment Saved";
+    }
+
+    //Collaboration-related methods
+    @PostMapping("/addCollaboration")
+    public @ResponseBody String addCollaboration(@RequestParam Integer treeId,
+                                                 @RequestParam Integer userId,
+                                                 @RequestParam Role role,
+                                                 @RequestParam Status status) {
+        FamilyTree familyTree = familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new RuntimeException("Family tree not found"));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Collaboration collaboration = new Collaboration();
+        collaboration.setFamilyTree(familyTree);
+        collaboration.setUser(user);
+        collaboration.setRole(role);
+        collaboration.setStatus(status);
+
+        collaborationRepository.save(collaboration);
+        return "Collaboration Saved";
+    }
+
+    @GetMapping("/allCollaborations")
+    public @ResponseBody Iterable<Collaboration> getAllCollaborations() {
+        return collaborationRepository.findAll();
     }
 
 }
