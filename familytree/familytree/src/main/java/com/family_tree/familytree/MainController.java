@@ -57,6 +57,7 @@ public class MainController {
         }
 
         try {
+            //Create and add user to database
             User user = new User();
             user.setUsername(username);
             user.setEmail(emailAddress);
@@ -78,10 +79,22 @@ public class MainController {
     public @ResponseBody String addFamilyTree(@RequestParam String treeName,
                                               @RequestParam PrivacySetting privacySetting,
                                               @RequestParam Integer userId) {
+        //Ensure fields are not empty
+        if (treeName == null || treeName.isEmpty()) {
+            return "Tree name is required.";
+        }
+        if (privacySetting == null) {
+            return "Privacy setting is required.";
+        }
+        if (userId == null) {
+            return "User ID is required.";
+        }
+
         try {
             User owner = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
+            //Create and add tree information to the database
             FamilyTree familyTree = new FamilyTree();
             familyTree.setTreeName(treeName);
             familyTree.setPrivacySetting(privacySetting);
@@ -104,10 +117,30 @@ public class MainController {
     public @ResponseBody String addFamilyMember(@RequestParam String name,
                                                 @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date birthdate,
                                                 @RequestParam Gender gender,  // Gender is already of type Gender
-                                                @RequestParam Integer userId,
-                                                @RequestParam Integer treeId,
-                                                @RequestParam Integer addedById,
+                                                @RequestParam Integer userId, //User who owns the family tree
+                                                @RequestParam Integer treeId, //Tree the individual is being added to
+                                                @RequestParam Integer addedById, //User who is adding the individual
                                                 @RequestParam(required = false) String additionalInfo) {
+        //Ensure required fields are not left empty (additional info can be left empty)
+        if (name == null || name.isEmpty()) {
+            return "Name is required.";
+        }
+        if (birthdate == null) {
+            return "Birthdate is required.";
+        }
+        if (gender == null) {
+            return "Gender is required.";
+        }
+        if (userId == null) {
+            return "User ID is required.";
+        }
+        if (treeId == null) {
+            return "Tree ID is required.";
+        }
+        if (addedById == null) {
+            return "Added By ID is required.";
+        }
+
         try {
             FamilyTree familyTree = familyTreeRepository.findById(treeId)
                     .orElseThrow(() -> new RuntimeException("Family tree not found"));
@@ -117,7 +150,7 @@ public class MainController {
 
             User addedBy = userRepository.findById(addedById)
                     .orElseThrow(() -> new RuntimeException("User not found"));
-
+            //Create and add a family member to the tree
             FamilyMember familyMember = new FamilyMember();
             familyMember.setName(name);
             familyMember.setBirthdate(birthdate);
@@ -143,9 +176,27 @@ public class MainController {
     @PostMapping("/addSuggestedEdit")
     public @ResponseBody String addSuggestedEdit(@RequestParam Integer memberId,
                                                  @RequestParam Integer suggestedById,
-                                                 @RequestParam String fieldName,
+                                                 @RequestParam String fieldName, //field being changed (eg. name, birthdate, etc.)
                                                  @RequestParam String oldValue,
                                                  @RequestParam String newValue) {
+
+        //Ensure required fields are not empty
+        if (memberId == null) {
+            return "Member ID is required.";
+        }
+        if (suggestedById == null) {
+            return "Suggested By ID is required.";
+        }
+        if (fieldName == null || fieldName.isEmpty()) {
+            return "Field name is required.";
+        }
+        if (oldValue == null || oldValue.isEmpty()) {
+            return "Old value is required.";
+        }
+        if (newValue == null || newValue.isEmpty()) {
+            return "New value is required.";
+        }
+
         try {
             FamilyMember member = familyMemberRepository.findById(memberId)
                     .orElseThrow(() -> new RuntimeException("Family member not found"));
@@ -153,6 +204,7 @@ public class MainController {
             User suggestedBy = userRepository.findById(suggestedById)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
+            //Create and add suggest edit to database
             SuggestEdit suggestedEdit = new SuggestEdit();
             suggestedEdit.setMember(member);
             suggestedEdit.setSuggestedBy(suggestedBy);
@@ -180,6 +232,20 @@ public class MainController {
                                                 @RequestParam Integer member1Id,
                                                 @RequestParam Integer member2Id,
                                                 @RequestParam RelationshipType relationship) {
+        //Ensure required fields are not left empty
+        if (treeId == null) {
+            return "Tree ID is required.";
+        }
+        if (member1Id == null) {
+            return "Member 1 ID is required.";
+        }
+        if (member2Id == null) {
+            return "Member 2 ID is required.";
+        }
+        if (relationship == null) {
+            return "Relationship type is required.";
+        }
+
         try {
             FamilyTree familyTree = familyTreeRepository.findById(treeId)
                     .orElseThrow(() -> new RuntimeException("Family tree not found"));
@@ -190,6 +256,7 @@ public class MainController {
             FamilyMember member2 = familyMemberRepository.findById(member2Id)
                     .orElseThrow(() -> new RuntimeException("Family member 2 not found"));
 
+            //Add relationship to the database
             Relationship rel = new Relationship(); //rel refers to relationship
             rel.setFamilyTree(familyTree);
             rel.setMember1(member1);
@@ -215,6 +282,19 @@ public class MainController {
             @RequestParam String typeOfFile,
             @RequestParam MultipartFile fileData, // MultipartFile to handle binary data upload
             @RequestParam Integer uploadedById) {
+        //Ensure required fields are not left empty
+        if (memberId == null) {
+            return "Member ID is required.";
+        }
+        if (typeOfFile == null || typeOfFile.isEmpty()) {
+            return "Type of file is required.";
+        }
+        if (fileData == null || fileData.isEmpty()) {
+            return "File data is required.";
+        }
+        if (uploadedById == null) {
+            return "Uploaded By ID is required.";
+        }
 
         try {
             // Find the family member to whom this attachment will be associated
@@ -245,6 +325,20 @@ public class MainController {
                                                  @RequestParam Integer userId,
                                                  @RequestParam Role role,
                                                  @RequestParam Status status) {
+        //Ensure required fields are not left empty
+        if (treeId == null) {
+            return "Tree ID is required.";
+        }
+        if (userId == null) {
+            return "User ID is required.";
+        }
+        if (role == null) {
+            return "Role is required.";
+        }
+        if (status == null) {
+            return "Status is required.";
+        }
+
         try {
             FamilyTree familyTree = familyTreeRepository.findById(treeId)
                     .orElseThrow(() -> new RuntimeException("Family tree not found"));
