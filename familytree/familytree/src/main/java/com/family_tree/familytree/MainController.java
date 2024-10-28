@@ -51,11 +51,20 @@ public class MainController {
         // @ResponseBody means the returned String is the response, not a view name
         // @RequestParam means it is a parameter from the GET or POST request
 
-        User user = new User();
-        user.setUsername(username);
-        user.setEmail(emailAddress);
-        userRepository.save(user);
-        return "Saved";
+        //Ensure username and email are not left empty
+        if (username == null || username.isEmpty() || emailAddress == null || emailAddress.isEmpty()) {
+            return "Username and Email Address are required.";
+        }
+
+        try {
+            User user = new User();
+            user.setUsername(username);
+            user.setEmail(emailAddress);
+            userRepository.save(user);
+            return "User Saved Successfully";
+        } catch (Exception e) {
+            return "Error saving user: " + e.getMessage();
+        }
     }
 
     @GetMapping(path="/all")
@@ -69,16 +78,20 @@ public class MainController {
     public @ResponseBody String addFamilyTree(@RequestParam String treeName,
                                               @RequestParam PrivacySetting privacySetting,
                                               @RequestParam Integer userId) {
-        User owner = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        try {
+            User owner = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-        FamilyTree familyTree = new FamilyTree();
-        familyTree.setTreeName(treeName);
-        familyTree.setPrivacySetting(privacySetting);
-        familyTree.setOwner(owner);
+            FamilyTree familyTree = new FamilyTree();
+            familyTree.setTreeName(treeName);
+            familyTree.setPrivacySetting(privacySetting);
+            familyTree.setOwner(owner);
 
-        familyTreeRepository.save(familyTree);
-        return "Family Tree Saved";
+            familyTreeRepository.save(familyTree);
+            return "Family Tree Saved Successfully";
+        } catch (Exception e) {
+            return "Error saving family tree: " + e.getMessage();
+        }
     }
 
     @GetMapping("/allFamilyTrees")
@@ -95,26 +108,29 @@ public class MainController {
                                                 @RequestParam Integer treeId,
                                                 @RequestParam Integer addedById,
                                                 @RequestParam(required = false) String additionalInfo) {
-        FamilyTree familyTree = familyTreeRepository.findById(treeId)
-                .orElseThrow(() -> new RuntimeException("Family tree not found"));
+        try {
+            FamilyTree familyTree = familyTreeRepository.findById(treeId)
+                    .orElseThrow(() -> new RuntimeException("Family tree not found"));
 
-        // Find the user who owns this family member
-        User owner = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Owner not found"));
+            User owner = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("Owner not found"));
 
-        User addedBy = userRepository.findById(addedById)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            User addedBy = userRepository.findById(addedById)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-        FamilyMember familyMember = new FamilyMember();
-        familyMember.setName(name);
-        familyMember.setBirthdate(birthdate);
-        familyMember.setGender(gender); // No need for valueOf() here
-        familyMember.setFamilyTree(familyTree);
-        familyMember.setAddedBy(addedBy);
-        familyMember.setAdditionalInfo(additionalInfo);
+            FamilyMember familyMember = new FamilyMember();
+            familyMember.setName(name);
+            familyMember.setBirthdate(birthdate);
+            familyMember.setGender(gender);
+            familyMember.setFamilyTree(familyTree);
+            familyMember.setAddedBy(addedBy);
+            familyMember.setAdditionalInfo(additionalInfo);
 
-        familyMemberRepository.save(familyMember);
-        return "Family Member Saved";
+            familyMemberRepository.save(familyMember);
+            return "Family Member Saved Successfully";
+        } catch (Exception e) {
+            return "Error saving family member: " + e.getMessage();
+        }
     }
 
     //Method to retrieve all family members
@@ -130,22 +146,26 @@ public class MainController {
                                                  @RequestParam String fieldName,
                                                  @RequestParam String oldValue,
                                                  @RequestParam String newValue) {
-        FamilyMember member = familyMemberRepository.findById(memberId)
-                .orElseThrow(() -> new RuntimeException("Family member not found"));
+        try {
+            FamilyMember member = familyMemberRepository.findById(memberId)
+                    .orElseThrow(() -> new RuntimeException("Family member not found"));
 
-        User suggestedBy = userRepository.findById(suggestedById)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            User suggestedBy = userRepository.findById(suggestedById)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-        SuggestEdit suggestedEdit = new SuggestEdit();
-        suggestedEdit.setMember(member);
-        suggestedEdit.setSuggestedBy(suggestedBy);
-        suggestedEdit.setFieldName(fieldName);
-        suggestedEdit.setOldValue(oldValue);
-        suggestedEdit.setNewValue(newValue);
-        suggestedEdit.setSuggestionStatus(SuggestionStatus.Pending);  // Default status
+            SuggestEdit suggestedEdit = new SuggestEdit();
+            suggestedEdit.setMember(member);
+            suggestedEdit.setSuggestedBy(suggestedBy);
+            suggestedEdit.setFieldName(fieldName);
+            suggestedEdit.setOldValue(oldValue);
+            suggestedEdit.setNewValue(newValue);
+            suggestedEdit.setSuggestionStatus(SuggestionStatus.Pending);
 
-        suggestEditRepository.save(suggestedEdit);
-        return "Suggested Edit Saved";
+            suggestEditRepository.save(suggestedEdit);
+            return "Suggested Edit Saved Successfully";
+        } catch (Exception e) {
+            return "Error saving suggested edit: " + e.getMessage();
+        }
     }
 
     // Method to retrieve all suggested edits
@@ -160,23 +180,27 @@ public class MainController {
                                                 @RequestParam Integer member1Id,
                                                 @RequestParam Integer member2Id,
                                                 @RequestParam RelationshipType relationship) {
-        FamilyTree familyTree = familyTreeRepository.findById(treeId)
-                .orElseThrow(() -> new RuntimeException("Family tree not found"));
+        try {
+            FamilyTree familyTree = familyTreeRepository.findById(treeId)
+                    .orElseThrow(() -> new RuntimeException("Family tree not found"));
 
-        FamilyMember member1 = familyMemberRepository.findById(member1Id)
-                .orElseThrow(() -> new RuntimeException("Family member 1 not found"));
+            FamilyMember member1 = familyMemberRepository.findById(member1Id)
+                    .orElseThrow(() -> new RuntimeException("Family member 1 not found"));
 
-        FamilyMember member2 = familyMemberRepository.findById(member2Id)
-                .orElseThrow(() -> new RuntimeException("Family member 2 not found"));
+            FamilyMember member2 = familyMemberRepository.findById(member2Id)
+                    .orElseThrow(() -> new RuntimeException("Family member 2 not found"));
 
-        Relationship rel = new Relationship();
-        rel.setFamilyTree(familyTree);
-        rel.setMember1(member1);
-        rel.setMember2(member2);
-        rel.setRelationship(relationship);
+            Relationship rel = new Relationship(); //rel refers to relationship
+            rel.setFamilyTree(familyTree);
+            rel.setMember1(member1);
+            rel.setMember2(member2);
+            rel.setRelationship(relationship);
 
-        relationshipRepository.save(rel);
-        return "Relationship Saved";
+            relationshipRepository.save(rel);
+            return "Relationship Saved Successfully";
+        } catch (Exception e) {
+            return "Error saving relationship: " + e.getMessage();
+        }
     }
 
     @GetMapping("/allRelationships")
@@ -192,31 +216,27 @@ public class MainController {
             @RequestParam MultipartFile fileData, // MultipartFile to handle binary data upload
             @RequestParam Integer uploadedById) {
 
-        // Find the family member to whom this attachment will be associated
-        FamilyMember member = familyMemberRepository.findById(memberId)
-                .orElseThrow(() -> new RuntimeException("Family member not found"));
-
-        // Find the user who uploaded this file
-        User uploadedBy = userRepository.findById(uploadedById)
-                .orElseThrow(() -> new RuntimeException("Uploader not found"));
-
-        // Create a new attachment
-        Attachment attachment = new Attachment();
-        attachment.setMember(member);
-        attachment.setTypeOfFile(typeOfFile);
-
         try {
-            // Set the file data from the MultipartFile input
-            attachment.setFileData(fileData.getBytes());
+            // Find the family member to whom this attachment will be associated
+            FamilyMember member = familyMemberRepository.findById(memberId)
+                    .orElseThrow(() -> new RuntimeException("Family member not found"));
+            // Find the user who uploaded this file
+            User uploadedBy = userRepository.findById(uploadedById)
+                    .orElseThrow(() -> new RuntimeException("Uploader not found"));
+            // Create a new attachment
+            Attachment attachment = new Attachment();
+            attachment.setMember(member);
+            attachment.setTypeOfFile(typeOfFile);
+            attachment.setFileData(fileData.getBytes());// Set the file data from the MultipartFile input
+            attachment.setUploadedBy(uploadedBy);
+
+            attachmentRepository.save(attachment);
+            return "Attachment Saved Successfully";
         } catch (IOException e) {
-            return "Failed to read file data";
+            return "Error reading file data: " + e.getMessage();
+        } catch (Exception e) {
+            return "Error saving attachment: " + e.getMessage();
         }
-
-        attachment.setUploadedBy(uploadedBy);
-
-        // Save the attachment to the database
-        attachmentRepository.save(attachment);
-        return "Attachment Saved";
     }
 
     //Collaboration-related methods
@@ -225,19 +245,23 @@ public class MainController {
                                                  @RequestParam Integer userId,
                                                  @RequestParam Role role,
                                                  @RequestParam Status status) {
-        FamilyTree familyTree = familyTreeRepository.findById(treeId)
-                .orElseThrow(() -> new RuntimeException("Family tree not found"));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        try {
+            FamilyTree familyTree = familyTreeRepository.findById(treeId)
+                    .orElseThrow(() -> new RuntimeException("Family tree not found"));
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Collaboration collaboration = new Collaboration();
-        collaboration.setFamilyTree(familyTree);
-        collaboration.setUser(user);
-        collaboration.setRole(role);
-        collaboration.setStatus(status);
+            Collaboration collaboration = new Collaboration();
+            collaboration.setFamilyTree(familyTree);
+            collaboration.setUser(user);
+            collaboration.setRole(role);
+            collaboration.setStatus(status);
 
-        collaborationRepository.save(collaboration);
-        return "Collaboration Saved";
+            collaborationRepository.save(collaboration);
+            return "Collaboration Saved Successfully";
+        } catch (Exception e) {
+            return "Error saving collaboration: " + e.getMessage();
+        }
     }
 
     @GetMapping("/allCollaborations")

@@ -22,6 +22,7 @@ public class User {
     @Column(name = "email_address", nullable = false, length = 200)  // Maps to "email_address", not null, max length 200
     private String email;
 
+    //Getters and setters
     public Integer getId() {
         return id;
     }
