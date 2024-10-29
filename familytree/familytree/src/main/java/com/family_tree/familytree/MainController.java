@@ -2,12 +2,15 @@ package com.family_tree.familytree;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.List;
+
 import com.family_tree.enums.Gender;
 import com.family_tree.enums.PrivacySetting;
 import com.family_tree.enums.SuggestionStatus;
 import com.family_tree.enums.RelationshipType;
 import com.family_tree.enums.Role;
 import com.family_tree.enums.Status;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
@@ -44,7 +47,7 @@ public class MainController {
     @Autowired
     private CollaborationRepository collaborationRepository;
 
-    // User-related methods
+    // User-related methods -------------------------------------------------
     @PostMapping(path="/add") // Map ONLY POST Requests
     public @ResponseBody String addNewUser (@RequestParam String username,
                                             @RequestParam String emailAddress) {
@@ -74,8 +77,8 @@ public class MainController {
         return userRepository.findAll();
     }
 
-    // FamilyTree-related methods
-    @PostMapping("/addFamilyTree")
+    // FamilyTree-related methods --------------------------------------------
+    @PostMapping("/createFamilyTree")
     public @ResponseBody String addFamilyTree(@RequestParam String treeName,
                                               @RequestParam PrivacySetting privacySetting,
                                               @RequestParam Integer userId) {
@@ -91,6 +94,7 @@ public class MainController {
         }
 
         try {
+            //Find the user that will own the tree
             User owner = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -107,19 +111,66 @@ public class MainController {
         }
     }
 
+    //Update family tree and privacy settings (user decides to edit tree information)
+    @PostMapping("/updateFamilyTree")
+    public @ResponseBody String updateFamilyTree(@RequestParam Integer treeId,
+                                                 @RequestParam(required = false) String treeName,
+                                                 @RequestParam(required = false) PrivacySetting privacySetting) {
+        try {
+            FamilyTree familyTree = familyTreeRepository.findById(treeId)
+                    .orElseThrow(() -> new RuntimeException("Family tree not found"));
+
+            if (treeName != null && !treeName.isEmpty()) {
+                familyTree.setTreeName(treeName);
+            }
+            if (privacySetting != null) {
+                familyTree.setPrivacySetting(privacySetting);
+            }
+
+            familyTreeRepository.save(familyTree);
+            return "Family Tree Updated Successfully";
+        } catch (Exception e) {
+            return "Error updating family tree: " + e.getMessage();
+        }
+    }
+
     @GetMapping("/allFamilyTrees")
     public @ResponseBody Iterable<FamilyTree> getAllFamilyTrees() {
         return familyTreeRepository.findAll();
+    }
+
+    //Delete family tree by ID
+    @PostMapping("/deleteFamilyTree")
+    @Transactional // Ensures all deletions succeed or roll back together
+    public @ResponseBody String deleteFamilyTree(@RequestParam Integer treeId) {
+        try {
+            // Delete all family members associated with this tree
+            familyMemberRepository.deleteByTreeId(treeId);
+
+            // Delete all relationships associated with this tree
+            relationshipRepository.deleteByTreeId(treeId);
+
+            // Delete all collaborations associated with this tree
+            collaborationRepository.deleteByTreeId(treeId);
+
+            // Delete the family tree itself
+            familyTreeRepository.deleteById(treeId);
+
+            return "Family Tree and all associated records deleted successfully";
+        } catch (Exception e) {
+            return "Error deleting family tree and associated records: " + e.getMessage();
+        }
     }
 
     //FamilyMember-related methods
     @PostMapping("/addFamilyMember")
     public @ResponseBody String addFamilyMember(@RequestParam String name,
                                                 @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date birthdate,
-                                                @RequestParam Gender gender,  // Gender is already of type Gender
-                                                @RequestParam Integer userId, //User who owns the family tree
-                                                @RequestParam Integer treeId, //Tree the individual is being added to
-                                                @RequestParam Integer addedById, //User who is adding the individual
+                                                @RequestParam Gender gender,
+                                                @RequestParam Integer userId,
+                                                @RequestParam Integer treeId,
+                                                @RequestParam Integer addedById,
+                                                @RequestParam(required = false) Date deathdate,
                                                 @RequestParam(required = false) String additionalInfo) {
         //Ensure required fields are not left empty (additional info can be left empty)
         if (name == null || name.isEmpty()) {
@@ -154,6 +205,7 @@ public class MainController {
             FamilyMember familyMember = new FamilyMember();
             familyMember.setName(name);
             familyMember.setBirthdate(birthdate);
+            familyMember.setDeathdate(deathdate);
             familyMember.setGender(gender);
             familyMember.setFamilyTree(familyTree);
             familyMember.setAddedBy(addedBy);
@@ -166,13 +218,58 @@ public class MainController {
         }
     }
 
-    //Method to retrieve all family members
-    @GetMapping("/allFamilyMembers")
-    public @ResponseBody Iterable<FamilyMember> getAllFamilyMembers() {
-        return familyMemberRepository.findAll();
+    //Method for updating/editing a family member
+    @PostMapping("/editFamilyMember")
+    public @ResponseBody String editFamilyMember(@RequestParam Integer memberId,
+                                                 @RequestParam(required = false) String name,
+                                                 @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date birthdate,
+                                                 @RequestParam(required = false) Gender gender,
+                                                 @RequestParam(required = false) Date deathdate,
+                                                 @RequestParam(required = false) String additionalInfo) {
+        try {
+            // Find the existing family member
+            FamilyMember familyMember = familyMemberRepository.findById(memberId)
+                    .orElseThrow(() -> new RuntimeException("Family member not found"));
+
+            // Update only provided fields
+            if (name != null && !name.isEmpty()) {
+                familyMember.setName(name);
+            }
+            if (birthdate != null) {
+                familyMember.setBirthdate(birthdate);
+            }
+            if (gender != null) {
+                familyMember.setGender(gender);
+            }
+            if (deathdate != null) {
+                familyMember.setDeathdate(deathdate);
+            }
+            if (additionalInfo != null && !additionalInfo.isEmpty()) {
+                familyMember.setAdditionalInfo(additionalInfo);
+            }
+
+            // Save the updated family member
+            familyMemberRepository.save(familyMember);
+            return "Family Member Updated Successfully";
+        } catch (Exception e) {
+            return "Error updating family member: " + e.getMessage();
+        }
     }
 
-    //SuggestEdit-related methods
+    // Get details of a single family member by memberId
+    @GetMapping("/getFamilyMember")
+    public @ResponseBody FamilyMember getFamilyMember(@RequestParam Integer memberId) {
+        return familyMemberRepository.findById(memberId)
+                .orElseThrow(() -> new RuntimeException("Family member not found"));
+    }
+
+    // Get all family members in a specific family tree by treeId
+    @GetMapping("/getFamilyMembersInTree")
+    public @ResponseBody List<FamilyMember> getFamilyMembersInTree(@RequestParam Integer treeId) {
+        return familyMemberRepository.findByFamilyTreeId(treeId);
+    }
+
+    //SuggestEdit-related methods -----------------------------------------------------
     @PostMapping("/addSuggestedEdit")
     public @ResponseBody String addSuggestedEdit(@RequestParam Integer memberId,
                                                  @RequestParam Integer suggestedById,
@@ -226,7 +323,7 @@ public class MainController {
         return suggestEditRepository.findAll();
     }
 
-    // Relationship-related methods
+    // Relationship-related methods ------------------------------------------------------------------
     @PostMapping("/addRelationship")
     public @ResponseBody String addRelationship(@RequestParam Integer treeId,
                                                 @RequestParam Integer member1Id,
@@ -275,7 +372,7 @@ public class MainController {
         return relationshipRepository.findAll();
     }
 
-    //Attachment-related methods
+    //Attachment-related methods -----------------------------------------------------------------
     @PostMapping("/addAttachment")
     public @ResponseBody String addAttachment(
             @RequestParam Integer memberId,
@@ -319,7 +416,7 @@ public class MainController {
         }
     }
 
-    //Collaboration-related methods
+    //Collaboration-related methods -----------------------------------------------------------------
     @PostMapping("/addCollaboration")
     public @ResponseBody String addCollaboration(@RequestParam Integer treeId,
                                                  @RequestParam Integer userId,

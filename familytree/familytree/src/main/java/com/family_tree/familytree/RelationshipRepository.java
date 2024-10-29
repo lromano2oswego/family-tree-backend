@@ -16,7 +16,7 @@ public interface RelationshipRepository extends JpaRepository<Relationship, Inte
     //Delete relationships by tree id(for cascading tree deletion)
     @Modifying
     @Query("DELETE FROM Relationship WHERE familyTree.id = :treeId")
-    void deleteByFamilyTreeId(@Param("treeId") Integer treeId);
+    void deleteByTreeId(@Param("treeId") Integer treeId);
 
     //Delete relationships for a specific family member on a tree
     @Modifying

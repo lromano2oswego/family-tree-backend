@@ -28,4 +28,9 @@ public interface FamilyMemberRepository extends CrudRepository<FamilyMember, Int
     @Query("DELETE FROM FamilyMember WHERE memberId = :memberId")
     void deleteByMemberId(@Param("memberId") Integer memberId);
 
+    //Delete family member based on tree id(used for cascade deletion)
+    @Modifying
+    @Query("DELETE FROM FamilyMember WHERE familyTree.id = :treeId")
+    void deleteByTreeId(@Param("treeId") Integer treeId);
+
 }

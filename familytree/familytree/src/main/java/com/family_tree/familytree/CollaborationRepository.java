@@ -14,6 +14,11 @@ public interface CollaborationRepository extends CrudRepository<Collaboration, I
     //Find collaboration by user and tree (for accepting or denying invitation)
     Optional<Collaboration> findByFamilyTreeIdAndUserId(Integer treeId, Integer userId);
 
+    //Delete collaboration based on tree id(for cascade deletion)
+    @Modifying
+    @Query("DELETE FROM Collaboration WHERE familyTree.id = :treeId")
+    void deleteByTreeId(@Param("treeId") Integer treeId);
+
     //Update collaboration status (for accepting or declining an invitation)
     @Modifying
     @Query("UPDATE Collaboration SET status = :status WHERE familyTree.id = :treeId AND user.id = :userId")
