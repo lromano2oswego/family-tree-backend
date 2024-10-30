@@ -2,8 +2,9 @@ package com.family_tree.familytree;
 
 import java.io.IOException;
 import java.util.Date;
+import java.text.SimpleDateFormat;
+import java.text.ParseException;
 import java.util.List;
-
 import com.family_tree.enums.Gender;
 import com.family_tree.enums.PrivacySetting;
 import com.family_tree.enums.SuggestionStatus;
@@ -48,7 +49,7 @@ public class MainController {
     private CollaborationRepository collaborationRepository;
 
     // User-related methods -----------------------------------------------------
-    @PostMapping(path="/add") // Map ONLY POST Requests
+    @PostMapping(path="/addUser") // Map ONLY POST Requests
     public @ResponseBody String addNewUser (@RequestParam String username,
                                             @RequestParam String emailAddress) {
         // @ResponseBody means the returned String is the response, not a view name
@@ -337,6 +338,77 @@ public class MainController {
             return "Suggested Edit Saved Successfully";
         } catch (Exception e) {
             return "Error saving suggested edit: " + e.getMessage();
+        }
+    }
+
+    //Method to retrieve all suggested edits on a specific tree
+    @GetMapping("/reviewSuggestedEdits")
+    public @ResponseBody List<SuggestEdit> ReviewSuggestedEdits(@RequestParam Integer treeId) {
+        return suggestEditRepository.findByTreeId(treeId);
+    }
+
+    //Method to accept suggested edits
+    @PostMapping("/acceptSuggestedEdit")
+    @Transactional
+    public @ResponseBody String acceptSuggestedEdit(@RequestParam Integer suggestionId) {
+        try {
+            // Fetch the suggested edit
+            SuggestEdit suggestedEdit = suggestEditRepository.findById(suggestionId)
+                    .orElseThrow(() -> new RuntimeException("Suggested edit not found"));
+
+            // Fetch the family member associated with the suggested edit
+            FamilyMember familyMember = suggestedEdit.getMember();
+            if (familyMember == null) {
+                return "Error: No family member associated with this suggested edit.";
+            }
+
+            // Define a date format
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+
+            // Apply the suggested edit based on the fieldName
+            switch (suggestedEdit.getFieldName()) {
+                case "name":
+                    familyMember.setName(suggestedEdit.getNewValue());
+                    break;
+                case "birthdate":
+                    familyMember.setBirthdate(dateFormat.parse(suggestedEdit.getNewValue())); // Parse string to Date
+                    break;
+                case "deathdate":
+                    familyMember.setDeathdate(dateFormat.parse(suggestedEdit.getNewValue()));
+                    break;
+                case "gender":
+                    familyMember.setGender(Gender.valueOf(suggestedEdit.getNewValue()));
+                    break;
+                case "additionalInfo":
+                    familyMember.setAdditionalInfo(suggestedEdit.getNewValue());
+                    break;
+                default:
+                    return "Error: Unsupported field for suggested edit.";
+            }
+
+            // Save the updated family member
+            familyMemberRepository.save(familyMember);
+
+            // Update the suggested edit status to Accepted
+            suggestedEdit.setSuggestionStatus(SuggestionStatus.Accepted);
+            suggestEditRepository.save(suggestedEdit);
+
+            return "Suggested edit applied and marked as Accepted.";
+        } catch (Exception e) {
+            return "Error applying suggested edit: " + e.getMessage();
+        }
+    }
+
+    //Method to decline suggested edit (suggested edit gets deleted)
+    @PostMapping("/declineSuggestedEdit")
+    @Transactional
+    public @ResponseBody String declineSuggestedEdit(@RequestParam Integer suggestionId) {
+        try {
+            // Simply delete the suggested edit
+            suggestEditRepository.deleteById(suggestionId);
+            return "Suggested edit declined successfully.";
+        } catch (Exception e) {
+            return "Error declining suggested edit: " + e.getMessage();
         }
     }
 
