@@ -47,7 +47,7 @@ public class MainController {
     @Autowired
     private CollaborationRepository collaborationRepository;
 
-    // User-related methods -------------------------------------------------
+    // User-related methods -----------------------------------------------------
     @PostMapping(path="/add") // Map ONLY POST Requests
     public @ResponseBody String addNewUser (@RequestParam String username,
                                             @RequestParam String emailAddress) {
@@ -77,7 +77,7 @@ public class MainController {
         return userRepository.findAll();
     }
 
-    // FamilyTree-related methods --------------------------------------------
+    // FamilyTree-related methods --------------------------------------------------------
     @PostMapping("/createFamilyTree")
     public @ResponseBody String addFamilyTree(@RequestParam String treeName,
                                               @RequestParam PrivacySetting privacySetting,
@@ -162,7 +162,7 @@ public class MainController {
         }
     }
 
-    //FamilyMember-related methods
+    //FamilyMember-related methods --------------------------------------------------------------------
     @PostMapping("/addFamilyMember")
     public @ResponseBody String addFamilyMember(@RequestParam String name,
                                                 @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date birthdate,
@@ -267,6 +267,29 @@ public class MainController {
     @GetMapping("/getFamilyMembersInTree")
     public @ResponseBody List<FamilyMember> getFamilyMembersInTree(@RequestParam Integer treeId) {
         return familyMemberRepository.findByFamilyTreeId(treeId);
+    }
+
+    // Method to delete a family member by ID, with cascading deletions for related data
+    @PostMapping("/deleteFamilyMember")
+    @Transactional // Ensure all deletions happen together or rollback on failure
+    public @ResponseBody String deleteFamilyMember(@RequestParam Integer memberId) {
+        try {
+            // Delete relationships where this family member is involved
+            relationshipRepository.deleteByMemberId(memberId);
+
+            // Delete any attachments associated with this family member
+            attachmentRepository.deleteByMemberId(memberId);
+
+            // Delete any suggested edits related to this family member
+            suggestEditRepository.deleteByMemberId(memberId);
+
+            // Finally, delete the family member itself
+            familyMemberRepository.deleteById(memberId);
+
+            return "Family Member and all associated records deleted successfully";
+        } catch (Exception e) {
+            return "Error deleting family member and associated records: " + e.getMessage();
+        }
     }
 
     //SuggestEdit-related methods -----------------------------------------------------

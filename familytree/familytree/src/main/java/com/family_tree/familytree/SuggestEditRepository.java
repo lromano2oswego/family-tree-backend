@@ -23,4 +23,9 @@ public interface SuggestEditRepository extends CrudRepository<SuggestEdit, Integ
     @Modifying
     @Query("DELETE FROM SuggestEdit WHERE suggestionId = :suggestionId")
     void deleteSuggestion(@Param("suggestionId") Integer suggestionId);
+
+    //Delete suggestion by family member id if member is deleted
+    @Modifying
+    @Query("DELETE FROM SuggestEdit s WHERE s.member.memberId = :memberId")
+    void deleteByMemberId(@Param("memberId") Integer memberId);
 }
