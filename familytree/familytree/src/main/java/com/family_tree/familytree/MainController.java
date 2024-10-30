@@ -1,10 +1,10 @@
 package com.family_tree.familytree;
 
 import java.io.IOException;
-import java.util.Date;
+import java.util.*;
 import java.text.SimpleDateFormat;
 import java.text.ParseException;
-import java.util.List;
+import java.util.stream.Collectors;
 import com.family_tree.enums.Gender;
 import com.family_tree.enums.PrivacySetting;
 import com.family_tree.enums.SuggestionStatus;
@@ -510,6 +510,69 @@ public class MainController {
             return "Error saving attachment: " + e.getMessage();
         }
     }
+
+    // Method for retrieving attachments with Base64 encoding for a specific family member
+    @GetMapping("/getAttachmentsForMember")
+    public @ResponseBody List<Map<String, Object>> getAttachmentsForMember(@RequestParam Integer memberId) {
+        List<Attachment> attachments = attachmentRepository.findByMember_MemberId(memberId);
+
+        return attachments.stream().map(attachment -> {
+            Map<String, Object> response = new HashMap<>();
+            response.put("mediaId", attachment.getMediaId());
+            response.put("typeOfFile", attachment.getTypeOfFile());
+
+            // Convert binary data to Base64
+            String base64Image = Base64.getEncoder().encodeToString(attachment.getFileData());
+            response.put("fileData", "data:image/jpeg;base64," + base64Image); // Adjust MIME type as needed
+
+            return response;
+        }).collect(Collectors.toList());
+    }
+
+    // Update all attachments' details for a specific family member
+    @PostMapping("/updateAttachmentsForMember")
+    public @ResponseBody String updateAttachmentsForMember(
+            @RequestParam Integer memberId,
+            @RequestParam(required = false) String typeOfFile,
+            @RequestParam(required = false) MultipartFile fileData) {
+        try {
+            List<Attachment> attachments = attachmentRepository.findByMember_MemberId(memberId);
+
+            if (attachments.isEmpty()) {
+                return "No attachments found for the given family member";
+            }
+
+            for (Attachment attachment : attachments) {
+                if (typeOfFile != null && !typeOfFile.isEmpty()) {
+                    attachment.setTypeOfFile(typeOfFile);
+                }
+
+                if (fileData != null && !fileData.isEmpty()) {
+                    attachment.setFileData(fileData.getBytes());
+                }
+
+                attachmentRepository.save(attachment); // Save each updated attachment
+            }
+
+            return "Attachments Updated Successfully";
+        } catch (IOException e) {
+            return "Error reading file data: " + e.getMessage();
+        } catch (Exception e) {
+            return "Error updating attachments: " + e.getMessage();
+        }
+    }
+
+    // Delete an attachment by mediaId
+    @PostMapping("/deleteAttachment")
+    public @ResponseBody String deleteAttachment(@RequestParam Integer mediaId) {
+        try {
+            attachmentRepository.deleteById(mediaId);
+            return "Attachment Deleted Successfully";
+        } catch (Exception e) {
+            return "Error deleting attachment: " + e.getMessage();
+        }
+    }
+
 
     //Collaboration-related methods -----------------------------------------------------------------
     @PostMapping("/addCollaboration")

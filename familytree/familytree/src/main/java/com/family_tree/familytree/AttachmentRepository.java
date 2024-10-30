@@ -11,6 +11,9 @@ public interface AttachmentRepository extends JpaRepository<Attachment, Integer>
     //Retrieve attachments by member id
     List<Attachment> findByMember_MemberId(Integer memberId);
 
+    // Retrieve a single attachment by mediaId
+    Attachment findByMediaId(Integer mediaId);
+
     //Delete by member id (used for cascade deletion)
     @Modifying
     @Query("DELETE FROM Attachment a WHERE a.member.memberId = :memberId")
