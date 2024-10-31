@@ -481,12 +481,30 @@ public class MainController {
 
     //Method for updating relationship
     @PostMapping("/updateRelationship")
-    public @ResponseBody String updateRelationship(@RequestParam Integer relationshipId,
-                                                   @RequestParam(required = false) RelationshipType relationshipType) {
+    public @ResponseBody String updateRelationship(
+            @RequestParam Integer relationshipId,
+            @RequestParam(required = false) Integer member1Id,
+            @RequestParam(required = false) Integer member2Id,
+            @RequestParam(required = false) RelationshipType relationshipType) {
         try {
             Relationship relationship = relationshipRepository.findById(relationshipId)
                     .orElseThrow(() -> new RuntimeException("Relationship not found"));
 
+            // Update member1 if provided
+            if (member1Id != null) {
+                FamilyMember member1 = familyMemberRepository.findById(member1Id)
+                        .orElseThrow(() -> new RuntimeException("Member 1 not found"));
+                relationship.setMember1(member1);
+            }
+
+            // Update member2 if provided
+            if (member2Id != null) {
+                FamilyMember member2 = familyMemberRepository.findById(member2Id)
+                        .orElseThrow(() -> new RuntimeException("Member 2 not found"));
+                relationship.setMember2(member2);
+            }
+
+            // Update relationship type if provided
             if (relationshipType != null) {
                 relationship.setRelationship(relationshipType);
             }
@@ -495,6 +513,18 @@ public class MainController {
             return "Relationship Updated Successfully";
         } catch (Exception e) {
             return "Error updating relationship: " + e.getMessage();
+        }
+    }
+
+    //Delete relationships by a specific family member
+    @PostMapping("/deleteRelationshipsByMember")
+    @Transactional
+    public @ResponseBody String deleteRelationshipsByMember(@RequestParam Integer memberId) {
+        try {
+            relationshipRepository.deleteByMemberId(memberId);
+            return "Relationships for member deleted successfully.";
+        } catch (Exception e) {
+            return "Error deleting relationships for member: " + e.getMessage();
         }
     }
 
@@ -645,39 +675,26 @@ public class MainController {
     }
 
     //Method for updating collaboration
-    @PostMapping("/updateRelationship")
-    public @ResponseBody String updateRelationship(
-            @RequestParam Integer relationshipId,
-            @RequestParam(required = false) Integer member1Id,
-            @RequestParam(required = false) Integer member2Id,
-            @RequestParam(required = false) RelationshipType relationshipType) {
+    @PostMapping("/updateCollaboration")
+    public @ResponseBody String updateCollaboration(@RequestParam Integer treeId,
+                                                    @RequestParam Integer userId,
+                                                    @RequestParam(required = false) Role role,
+                                                    @RequestParam(required = false) Status status) {
         try {
-            Relationship relationship = relationshipRepository.findById(relationshipId)
-                    .orElseThrow(() -> new RuntimeException("Relationship not found"));
+            Collaboration collaboration = collaborationRepository.findByFamilyTreeIdAndUserId(treeId, userId)
+                    .orElseThrow(() -> new RuntimeException("Collaboration not found"));
 
-            // Update member1 if provided
-            if (member1Id != null) {
-                FamilyMember member1 = familyMemberRepository.findById(member1Id)
-                        .orElseThrow(() -> new RuntimeException("Member 1 not found"));
-                relationship.setMember1(member1);
+            if (role != null) {
+                collaboration.setRole(role);
+            }
+            if (status != null) {
+                collaboration.setStatus(status);
             }
 
-            // Update member2 if provided
-            if (member2Id != null) {
-                FamilyMember member2 = familyMemberRepository.findById(member2Id)
-                        .orElseThrow(() -> new RuntimeException("Member 2 not found"));
-                relationship.setMember2(member2);
-            }
-
-            // Update relationship type if provided
-            if (relationshipType != null) {
-                relationship.setRelationship(relationshipType);
-            }
-
-            relationshipRepository.save(relationship);
-            return "Relationship Updated Successfully";
+            collaborationRepository.save(collaboration);
+            return "Collaboration Updated Successfully";
         } catch (Exception e) {
-            return "Error updating relationship: " + e.getMessage();
+            return "Error updating collaboration: " + e.getMessage();
         }
     }
 
