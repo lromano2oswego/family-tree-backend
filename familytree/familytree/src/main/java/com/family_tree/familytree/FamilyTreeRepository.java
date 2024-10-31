@@ -1,6 +1,7 @@
 package com.family_tree.familytree;
 
 import com.family_tree.enums.PrivacySetting;
+import java.util.List;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -9,6 +10,10 @@ import org.springframework.data.repository.query.Param;
 
 public interface FamilyTreeRepository extends CrudRepository<FamilyTree, Integer> {
     // Custom query methods can be added here
+
+
+    // Find all family trees by owner (user) ID
+    List<FamilyTree> findByOwner_Id(Integer userId);
 
     //Update tree information (Name and privacy settings)
     @Modifying

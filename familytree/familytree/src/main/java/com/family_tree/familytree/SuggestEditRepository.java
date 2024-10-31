@@ -14,6 +14,9 @@ public interface SuggestEditRepository extends CrudRepository<SuggestEdit, Integ
     //Retrieve pending suggestions for a family owner to review
     List<SuggestEdit> findBySuggestionStatus(SuggestionStatus status);
 
+    //Retrieve suggested edit for a family member
+    List<SuggestEdit> findByMember_MemberId(Integer memberId);
+
     //Update suggestion status to accepted
     @Modifying
     @Query("UPDATE SuggestEdit SET suggestionStatus = 'Accepted' WHERE suggestionId = :suggestionId")

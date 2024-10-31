@@ -72,7 +72,7 @@ public class MainController {
         }
     }
 
-    @GetMapping(path="/all")
+    @GetMapping(path="/allUsers")
     public @ResponseBody Iterable<User> getAllUsers() {
         // This returns a JSON or XML with the users
         return userRepository.findAll();
@@ -135,10 +135,21 @@ public class MainController {
         }
     }
 
-    @GetMapping("/allFamilyTrees")
-    public @ResponseBody Iterable<FamilyTree> getAllFamilyTrees() {
-        return familyTreeRepository.findAll();
+
+    //Method for getting all family trees for an owner
+    @GetMapping("/getUserFamilyTrees")
+    public @ResponseBody List<FamilyTree> getUserFamilyTrees(@RequestParam Integer userId) {
+        return familyTreeRepository.findByOwner_Id(userId);
     }
+
+    //Method for getting tree by treeId
+    @GetMapping("/getFamilyTree")
+    public @ResponseBody FamilyTree getFamilyTree(@RequestParam Integer treeId) {
+        return familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new RuntimeException("Family tree not found"));
+    }
+
+
 
     //Delete family tree by ID
     @PostMapping("/deleteFamilyTree")
@@ -399,6 +410,12 @@ public class MainController {
         }
     }
 
+    //Review suggested edit of a specific family member (by family member id)
+    @GetMapping("/getSuggestedEditsForMember")
+    public @ResponseBody List<SuggestEdit> getSuggestedEditsForMember(@RequestParam Integer memberId) {
+        return suggestEditRepository.findByMember_MemberId(memberId);
+    }
+
     //Method to decline suggested edit (suggested edit gets deleted)
     @PostMapping("/declineSuggestedEdit")
     @Transactional
@@ -462,9 +479,23 @@ public class MainController {
         }
     }
 
-    @GetMapping("/allRelationships")
-    public @ResponseBody Iterable<Relationship> getAllRelationships() {
-        return relationshipRepository.findAll();
+    //Method for updating relationship
+    @PostMapping("/updateRelationship")
+    public @ResponseBody String updateRelationship(@RequestParam Integer relationshipId,
+                                                   @RequestParam(required = false) RelationshipType relationshipType) {
+        try {
+            Relationship relationship = relationshipRepository.findById(relationshipId)
+                    .orElseThrow(() -> new RuntimeException("Relationship not found"));
+
+            if (relationshipType != null) {
+                relationship.setRelationship(relationshipType);
+            }
+
+            relationshipRepository.save(relationship);
+            return "Relationship Updated Successfully";
+        } catch (Exception e) {
+            return "Error updating relationship: " + e.getMessage();
+        }
     }
 
     //Attachment-related methods -----------------------------------------------------------------
@@ -613,9 +644,59 @@ public class MainController {
         }
     }
 
-    @GetMapping("/allCollaborations")
-    public @ResponseBody Iterable<Collaboration> getAllCollaborations() {
-        return collaborationRepository.findAll();
+    //Method for updating collaboration
+    @PostMapping("/updateRelationship")
+    public @ResponseBody String updateRelationship(
+            @RequestParam Integer relationshipId,
+            @RequestParam(required = false) Integer member1Id,
+            @RequestParam(required = false) Integer member2Id,
+            @RequestParam(required = false) RelationshipType relationshipType) {
+        try {
+            Relationship relationship = relationshipRepository.findById(relationshipId)
+                    .orElseThrow(() -> new RuntimeException("Relationship not found"));
+
+            // Update member1 if provided
+            if (member1Id != null) {
+                FamilyMember member1 = familyMemberRepository.findById(member1Id)
+                        .orElseThrow(() -> new RuntimeException("Member 1 not found"));
+                relationship.setMember1(member1);
+            }
+
+            // Update member2 if provided
+            if (member2Id != null) {
+                FamilyMember member2 = familyMemberRepository.findById(member2Id)
+                        .orElseThrow(() -> new RuntimeException("Member 2 not found"));
+                relationship.setMember2(member2);
+            }
+
+            // Update relationship type if provided
+            if (relationshipType != null) {
+                relationship.setRelationship(relationshipType);
+            }
+
+            relationshipRepository.save(relationship);
+            return "Relationship Updated Successfully";
+        } catch (Exception e) {
+            return "Error updating relationship: " + e.getMessage();
+        }
+    }
+
+    //Method for getting collaborations on a tree
+    @GetMapping("/getCollaborationsForTree")
+    public @ResponseBody List<Collaboration> getCollaborationsForTree(@RequestParam Integer treeId) {
+        return collaborationRepository.findByFamilyTreeId(treeId);
+    }
+
+
+    @PostMapping("/deleteCollaboration")
+    @Transactional
+    public @ResponseBody String deleteCollaboration(@RequestParam Integer treeId, @RequestParam Integer userId) {
+        try {
+            collaborationRepository.deleteByTreeIdAndUserId(treeId, userId);
+            return "Collaboration for user deleted successfully.";
+        } catch (Exception e) {
+            return "Error deleting collaboration for user: " + e.getMessage();
+        }
     }
 
 }
