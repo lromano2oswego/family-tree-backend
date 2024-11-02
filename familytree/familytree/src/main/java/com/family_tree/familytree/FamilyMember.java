@@ -39,6 +39,9 @@ public class FamilyMember {
     @Column(length = 2000)
     private String additionalInfo;
 
+    @Column(nullable = false)
+    private boolean isPrivate; // Indicates if the family member's information is private
+
     // Getters and Setters
 
     public Integer getMemberId() {
@@ -112,4 +115,8 @@ public class FamilyMember {
     public void setAdditionalInfo(String additionalInfo) {
         this.additionalInfo = additionalInfo;
     }
+
+    public boolean isPrivate() { return isPrivate; }
+
+    public void setPrivate(boolean isPrivate) {this.isPrivate = isPrivate; }
 }

@@ -25,6 +25,7 @@ public interface RelationshipRepository extends JpaRepository<Relationship, Inte
 
     //Update a relationship type
     @Modifying
-    @Query("UPDATE Relationship SET relationship = :relationship WHERE (member1.memberId = :member1Id AND member2.memberId = :member2Id) OR (member1.id = :member2Id AND member2.id = :member1Id)")
+    @Query("UPDATE Relationship SET relationship = :relationship WHERE (member1.memberId = :member1Id AND member2.memberId = :member2Id) OR (member1.memberId = :member2Id AND member2.memberId = :member1Id)")
     void updateRelationshipType(@Param("relationship") RelationshipType relationship, @Param("member1Id") Integer member1Id, @Param("member2Id") Integer member2Id);
+
 }

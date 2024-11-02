@@ -48,6 +48,12 @@ public class MainController {
     @Autowired
     private CollaborationRepository collaborationRepository;
 
+    @Autowired
+    private ExportConfigurationRepository exportConfigurationRepository;
+
+    @Autowired
+    private ExportService exportService;
+
     // User-related methods -----------------------------------------------------
     @PostMapping(path="/addUser") // Map ONLY POST Requests
     public @ResponseBody String addNewUser (@RequestParam String username,
@@ -182,7 +188,7 @@ public class MainController {
                                                 @RequestParam Integer userId,
                                                 @RequestParam Integer treeId,
                                                 @RequestParam Integer addedById,
-                                                @RequestParam(required = false) Date deathdate,
+                                                @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date deathdate,
                                                 @RequestParam(required = false) String additionalInfo) {
         //Ensure required fields are not left empty (additional info can be left empty)
         if (name == null || name.isEmpty()) {
@@ -213,6 +219,7 @@ public class MainController {
 
             User addedBy = userRepository.findById(addedById)
                     .orElseThrow(() -> new RuntimeException("User not found"));
+
             //Create and add a family member to the tree
             FamilyMember familyMember = new FamilyMember();
             familyMember.setName(name);
@@ -220,6 +227,7 @@ public class MainController {
             familyMember.setDeathdate(deathdate);
             familyMember.setGender(gender);
             familyMember.setFamilyTree(familyTree);
+            familyMember.setOwner(owner);
             familyMember.setAddedBy(addedBy);
             familyMember.setAdditionalInfo(additionalInfo);
 
@@ -236,7 +244,7 @@ public class MainController {
                                                  @RequestParam(required = false) String name,
                                                  @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date birthdate,
                                                  @RequestParam(required = false) Gender gender,
-                                                 @RequestParam(required = false) Date deathdate,
+                                                 @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date deathdate,
                                                  @RequestParam(required = false) String additionalInfo) {
         try {
             // Find the existing family member
@@ -636,12 +644,12 @@ public class MainController {
 
 
     //Collaboration-related methods -----------------------------------------------------------------
+    // Endpoint to add a collaboration directly with a specified status and role
     @PostMapping("/addCollaboration")
     public @ResponseBody String addCollaboration(@RequestParam Integer treeId,
                                                  @RequestParam Integer userId,
                                                  @RequestParam Role role,
                                                  @RequestParam Status status) {
-        //Ensure required fields are not left empty
         if (treeId == null) {
             return "Tree ID is required.";
         }
@@ -674,45 +682,185 @@ public class MainController {
         }
     }
 
-    //Method for updating collaboration
-    @PostMapping("/updateCollaboration")
-    public @ResponseBody String updateCollaboration(@RequestParam Integer treeId,
-                                                    @RequestParam Integer userId,
-                                                    @RequestParam(required = false) Role role,
-                                                    @RequestParam(required = false) Status status) {
-        try {
-            Collaboration collaboration = collaborationRepository.findByFamilyTreeIdAndUserId(treeId, userId)
-                    .orElseThrow(() -> new RuntimeException("Collaboration not found"));
+    // Endpoint to retrieve all collaborations
+    @GetMapping("/allCollaborations")
+    public @ResponseBody Iterable<Collaboration> getAllCollaborations() {
+        return collaborationRepository.findAll();
+    }
 
-            if (role != null) {
-                collaboration.setRole(role);
+    // Endpoint to invite a user to collaborate on a family tree
+    @PostMapping("/inviteCollaborator")
+    public @ResponseBody String inviteCollaborator(@RequestParam Integer treeId,
+                                                   @RequestParam Integer userId,
+                                                   @RequestParam Role role) {
+        if (treeId == null || userId == null || role == null) {
+            return "Tree ID, User ID, and Role are required.";
+        }
+
+        try {
+            FamilyTree familyTree = familyTreeRepository.findById(treeId)
+                    .orElseThrow(() -> new RuntimeException("Family tree not found"));
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Check if a pending or accepted collaboration already exists
+            Optional<Collaboration> existingCollaboration = collaborationRepository
+                    .findByFamilyTreeIdAndUserId(treeId, userId);
+
+            if (existingCollaboration.isPresent() &&
+                    (existingCollaboration.get().getStatus() == Status.Pending ||
+                            existingCollaboration.get().getStatus() == Status.Accepted)) {
+                return "User is already invited or a collaborator.";
             }
-            if (status != null) {
-                collaboration.setStatus(status);
-            }
+
+            Collaboration collaboration = new Collaboration();
+            collaboration.setFamilyTree(familyTree);
+            collaboration.setUser(user);
+            collaboration.setRole(role);
+            collaboration.setStatus(Status.Pending);
 
             collaborationRepository.save(collaboration);
-            return "Collaboration Updated Successfully";
+            return "Collaboration invitation sent successfully.";
         } catch (Exception e) {
-            return "Error updating collaboration: " + e.getMessage();
+            return "Error inviting collaborator: " + e.getMessage();
         }
     }
 
-    //Method for getting collaborations on a tree
-    @GetMapping("/getCollaborationsForTree")
-    public @ResponseBody List<Collaboration> getCollaborationsForTree(@RequestParam Integer treeId) {
+    // Endpoint for the invited user to accept the collaboration invite
+    @PostMapping("/acceptCollaboration")
+    public @ResponseBody String acceptCollaboration(@RequestParam Integer collaborationId) {
+        try {
+            Collaboration collaboration = collaborationRepository.findById(collaborationId)
+                    .orElseThrow(() -> new RuntimeException("Collaboration not found"));
+
+            collaboration.setStatus(Status.Accepted);
+            collaborationRepository.save(collaboration);
+            return "Collaboration accepted.";
+        } catch (Exception e) {
+            return "Error accepting collaboration: " + e.getMessage();
+        }
+    }
+
+    // Endpoint for the invited user to decline the collaboration invite
+    @PostMapping("/declineCollaboration")
+    public @ResponseBody String declineCollaboration(@RequestParam Integer collaborationId) {
+        try {
+            Collaboration collaboration = collaborationRepository.findById(collaborationId)
+                    .orElseThrow(() -> new RuntimeException("Collaboration not found"));
+
+            collaboration.setStatus(Status.Declined);
+            collaborationRepository.save(collaboration);
+            return "Collaboration declined.";
+        } catch (Exception e) {
+            return "Error declining collaboration: " + e.getMessage();
+        }
+    }
+
+    // Endpoint to update the role of a collaborator
+    @PostMapping("/updateCollaborationRole")
+    public @ResponseBody String updateCollaborationRole(@RequestParam Integer collaborationId,
+                                                        @RequestParam Role newRole) {
+        try {
+            Collaboration collaboration = collaborationRepository.findById(collaborationId)
+                    .orElseThrow(() -> new RuntimeException("Collaboration not found"));
+
+            collaboration.setRole(newRole);
+            collaborationRepository.save(collaboration);
+            return "Collaboration role updated successfully.";
+        } catch (Exception e) {
+            return "Error updating collaboration role: " + e.getMessage();
+        }
+    }
+
+    // Endpoint to retrieve collaborations for a specific family tree
+    @GetMapping("/getCollaborationsByTree")
+    public @ResponseBody List<Collaboration> getCollaborationsByTree(@RequestParam Integer treeId) {
         return collaborationRepository.findByFamilyTreeId(treeId);
     }
 
-
-    @PostMapping("/deleteCollaboration")
-    @Transactional
-    public @ResponseBody String deleteCollaboration(@RequestParam Integer treeId, @RequestParam Integer userId) {
+    // Endpoint to remove a collaborator
+    @PostMapping("/removeCollaborator")
+    @Transactional // Ensure the operation is atomic
+    public @ResponseBody String removeCollaborator(@RequestParam Integer collaborationId) {
         try {
-            collaborationRepository.deleteByTreeIdAndUserId(treeId, userId);
-            return "Collaboration for user deleted successfully.";
+            collaborationRepository.deleteById(collaborationId);
+            return "Collaborator removed successfully.";
         } catch (Exception e) {
-            return "Error deleting collaboration for user: " + e.getMessage();
+            return "Error removing collaborator: " + e.getMessage();
+        }
+    }
+    //Export-related methods -----------------------------------------------------------------
+    // Create an export configuration
+    @PostMapping("/create")
+    public @ResponseBody String createExportConfiguration(@RequestParam Integer familyTreeId,
+                                                          @RequestParam String format,
+                                                          @RequestParam boolean includePrivateData) {
+        try {
+            FamilyTree familyTree = familyTreeRepository.findById(familyTreeId)
+                    .orElseThrow(() -> new RuntimeException("Family tree not found"));
+
+            ExportConfiguration exportConfig = new ExportConfiguration();
+            exportConfig.setFamilyTree(familyTree);
+            exportConfig.setFormat(format);
+            exportConfig.setIncludePrivateData(includePrivateData);
+
+            exportConfigurationRepository.save(exportConfig);
+            return "Export configuration created successfully.";
+        } catch (Exception e) {
+            return "Error creating export configuration: " + e.getMessage();
+        }
+    }
+
+    // Read export configurations for a specific family tree
+    @GetMapping("/getByFamilyTree")
+    public @ResponseBody List<ExportConfiguration> getExportConfigurationsByFamilyTree(@RequestParam Integer familyTreeId) {
+        return exportConfigurationRepository.findByFamilyTreeId(familyTreeId);
+    }
+
+    // Update an export configuration
+    @PostMapping("/update")
+    public @ResponseBody String updateExportConfiguration(@RequestParam Integer configId,
+                                                          @RequestParam String format,
+                                                          @RequestParam boolean includePrivateData) {
+        try {
+            ExportConfiguration exportConfig = exportConfigurationRepository.findById(configId)
+                    .orElseThrow(() -> new RuntimeException("Export configuration not found"));
+
+            exportConfig.setFormat(format);
+            exportConfig.setIncludePrivateData(includePrivateData);
+            exportConfigurationRepository.save(exportConfig);
+
+            return "Export configuration updated successfully.";
+        } catch (Exception e) {
+            return "Error updating export configuration: " + e.getMessage();
+        }
+    }
+
+    // Delete an export configuration
+    @PostMapping("/delete")
+    public @ResponseBody String deleteExportConfiguration(@RequestParam Integer configId) {
+        try {
+            exportConfigurationRepository.deleteById(configId);
+            return "Export configuration deleted successfully.";
+        } catch (Exception e) {
+            return "Error deleting export configuration: " + e.getMessage();
+        }
+    }
+
+    // Endpoint to trigger the export of the family tree
+    @GetMapping("/exportFamilyTree")
+    public @ResponseBody String exportFamilyTree(@RequestParam Integer familyTreeId,
+                                                 @RequestParam Integer configId) {
+        try {
+            FamilyTree familyTree = familyTreeRepository.findById(familyTreeId)
+                    .orElseThrow(() -> new RuntimeException("Family tree not found"));
+            ExportConfiguration config = exportConfigurationRepository.findById(configId)
+                    .orElseThrow(() -> new RuntimeException("Export configuration not found"));
+
+            // Use the ExportService to generate the export data
+            return exportService.exportFamilyTree(familyTree, config.getFormat(), config.isIncludePrivateData());
+        } catch (Exception e) {
+            return "Error exporting family tree: " + e.getMessage();
         }
     }
 

@@ -3,7 +3,7 @@ package com.family_tree.familytree;
 import com.family_tree.enums.Status;
 import org.springframework.data.repository.CrudRepository;
 import com.family_tree.familytree.Collaboration;
-
+import com.family_tree.enums.Role;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.Modifying;
@@ -21,6 +21,12 @@ public interface CollaborationRepository extends CrudRepository<Collaboration, I
     @Query("DELETE FROM Collaboration WHERE familyTree.id = :treeId AND user.id = :userId")
     void deleteByTreeIdAndUserId(@Param("treeId") Integer treeId, @Param("userId") Integer userId);
 
+    //search for user by username
+    Optional<Collaboration> findByUser_Username(String username);
+
+    //Find user by role
+    List<Collaboration> findByRole(Role role);
+
     //Delete collaboration based on tree id(for cascade deletion)
     @Modifying
     @Query("DELETE FROM Collaboration WHERE familyTree.id = :treeId")
@@ -34,5 +40,11 @@ public interface CollaborationRepository extends CrudRepository<Collaboration, I
     // Retrieve all collaborations associated with a specific family tree
     @Query("SELECT c FROM Collaboration c WHERE c.familyTree.id = :treeId")
     List<Collaboration> findByFamilyTreeId(@Param("treeId") Integer treeId);
+
+    //Updating Collaborator Role to Viewer
+    @Modifying
+    @Query("UPDATE Collaboration SET role = 'Viewer' WHERE familyTree.id = :treeId AND user.id = :userId")
+    void updateCollaboratorToViewer(@Param("treeId") Integer treeId, @Param("userId") Integer userId);
+
 
 }
