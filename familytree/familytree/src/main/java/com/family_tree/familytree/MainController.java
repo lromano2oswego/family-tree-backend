@@ -55,19 +55,24 @@ public class MainController {
     private ExportService exportService;
 
     // User-related methods -----------------------------------------------------
-    @PostMapping(path="/addUser") // Map ONLY POST Requests
+    @PostMapping(path="/addUser") //Map only post requests
     public @ResponseBody String addNewUser (@RequestParam String username,
                                             @RequestParam String emailAddress) {
-        // @ResponseBody means the returned String is the response, not a view name
-        // @RequestParam means it is a parameter from the GET or POST request
-
-        //Ensure username and email are not left empty
+        // Ensure username and email are not left empty
         if (username == null || username.isEmpty() || emailAddress == null || emailAddress.isEmpty()) {
             return "Username and Email Address are required.";
         }
 
+        // Check for existing username or email
+        if (userRepository.existsByEmail(emailAddress)) {
+            return "Email already exists";
+        }
+        if (userRepository.existsByUsername(username)) {
+            return "Username already exists";
+        }
+
         try {
-            //Create and add user to database
+            // Create and add user to the database
             User user = new User();
             user.setUsername(username);
             user.setEmail(emailAddress);
@@ -78,10 +83,82 @@ public class MainController {
         }
     }
 
+    @PostMapping("/updateUser")
+    public @ResponseBody String updateUser(@RequestParam Integer userId,
+                                           @RequestParam(required = false) String username,
+                                           @RequestParam(required = false) String email) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (username != null && !user.getUsername().equals(username)) {
+            if (userRepository.existsByUsername(username)) {
+                return "Username already exists";
+            }
+            user.setUsername(username);
+        }
+
+        if (email != null && !user.getEmail().equals(email)) {
+            if (userRepository.existsByEmail(email)) {
+                return "Email already exists";
+            }
+            user.setEmail(email);
+        }
+
+        userRepository.save(user);
+        return "User updated successfully";
+    }
+
+    //Get user by id
+    @GetMapping("/getUserById")
+    public @ResponseBody Optional<User> getUserById(@RequestParam Integer userId) {
+        return userRepository.findById(userId);
+    }
+
+    //Search users by email or username
+    @GetMapping("/searchUsers")
+    public @ResponseBody List<User> searchUsers(@RequestParam String keyword) {
+        return userRepository.searchUsersByKeyword(keyword);
+    }
+
+    //Get user by username
+    @GetMapping("/getUserByUsername")
+    public @ResponseBody Optional<User> getUserByUsername(@RequestParam String username) {
+        return userRepository.findByUsername(username);
+    }
+
     @GetMapping(path="/allUsers")
     public @ResponseBody Iterable<User> getAllUsers() {
         // This returns a JSON or XML with the users
         return userRepository.findAll();
+    }
+
+    @PostMapping("/deleteUser")
+    @Transactional // Ensures all deletions succeed or rollback together
+    public @ResponseBody String deleteUser(@RequestParam Integer userId) {
+        try {
+
+            // Delete family trees owned by this user
+            familyTreeRepository.deleteByOwnerId(userId);
+
+            // Remove any family members added by this user or where the user is the "owner"
+            familyMemberRepository.deleteByOwnerOrAddedBy(userId);
+
+            // Remove any suggested edits made by this user
+            suggestEditRepository.deleteBySuggestedById(userId);
+
+            // Remove any attachments uploaded by this user
+            attachmentRepository.deleteByUploadedById(userId);
+
+            // Remove any collaborations where this user is involved
+            collaborationRepository.deleteByUserId(userId);
+
+            // Finally, delete the user itself
+            userRepository.deleteById(userId);
+
+            return "User and all associated records deleted successfully";
+        } catch (Exception e) {
+            return "Error deleting user and associated records: " + e.getMessage();
+        }
     }
 
     // FamilyTree-related methods --------------------------------------------------------
@@ -154,8 +231,6 @@ public class MainController {
         return familyTreeRepository.findById(treeId)
                 .orElseThrow(() -> new RuntimeException("Family tree not found"));
     }
-
-
 
     //Delete family tree by ID
     @PostMapping("/deleteFamilyTree")
@@ -524,6 +599,16 @@ public class MainController {
         }
     }
 
+    //Get relationships on a tree
+    @GetMapping("/getRelationshipsForTree")
+    public @ResponseBody List<Relationship> getRelationshipsForTree(@RequestParam Integer treeId) {
+        try {
+            return relationshipRepository.findByFamilyTreeId(treeId);
+        } catch (Exception e) {
+            throw new RuntimeException("Error retrieving relationships for the tree: " + e.getMessage());
+        }
+    }
+
     //Delete relationships by a specific family member
     @PostMapping("/deleteRelationshipsByMember")
     @Transactional
@@ -596,6 +681,27 @@ public class MainController {
 
             return response;
         }).collect(Collectors.toList());
+    }
+
+    //Get attachment by media id
+    @GetMapping("/getAttachment")
+    public @ResponseBody Map<String, Object> getAttachment(@RequestParam Integer mediaId) {
+        try {
+            Attachment attachment = attachmentRepository.findById(mediaId)
+                    .orElseThrow(() -> new RuntimeException("Attachment not found"));
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("mediaId", attachment.getMediaId());
+            response.put("typeOfFile", attachment.getTypeOfFile());
+
+            // Convert binary data to Base64 for sending over JSON
+            String base64File = Base64.getEncoder().encodeToString(attachment.getFileData());
+            response.put("fileData", "data:application/octet-stream;base64," + base64File);
+
+            return response;
+        } catch (Exception e) {
+            throw new RuntimeException("Error retrieving attachment: " + e.getMessage());
+        }
     }
 
     // Update all attachments' details for a specific family member
@@ -769,6 +875,17 @@ public class MainController {
             return "Collaboration role updated successfully.";
         } catch (Exception e) {
             return "Error updating collaboration role: " + e.getMessage();
+        }
+    }
+
+    //Get collaboration by a collaboration id
+    @GetMapping("/getCollaboration")
+    public @ResponseBody Collaboration getCollaboration(@RequestParam Integer collaborationId) {
+        try {
+            return collaborationRepository.findById(collaborationId)
+                    .orElseThrow(() -> new RuntimeException("Collaboration not found"));
+        } catch (Exception e) {
+            throw new RuntimeException("Error retrieving collaboration: " + e.getMessage());
         }
     }
 

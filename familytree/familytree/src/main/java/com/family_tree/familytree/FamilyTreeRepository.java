@@ -20,4 +20,8 @@ public interface FamilyTreeRepository extends CrudRepository<FamilyTree, Integer
     @Query("UPDATE FamilyTree SET treeName = :treeName, privacySetting = :privacySetting WHERE id = :id")
     void updateTreeInfo(@Param("treeName") String treeName, @Param("privacySetting") PrivacySetting privacySetting, @Param("id") Integer id);
 
+    //For cascading deletion of a user
+    @Modifying
+    @Query("DELETE FROM FamilyTree WHERE owner.id = :userId")
+    void deleteByOwnerId(@Param("userId") Integer userId);
 }

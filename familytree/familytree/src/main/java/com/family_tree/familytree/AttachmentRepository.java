@@ -19,5 +19,10 @@ public interface AttachmentRepository extends JpaRepository<Attachment, Integer>
     @Query("DELETE FROM Attachment a WHERE a.member.memberId = :memberId")
     void deleteByMemberId(@Param("memberId") Integer memberId);
 
+    //For cascade deletion of a user
+    @Modifying
+    @Query("DELETE FROM Attachment WHERE uploadedBy.id = :userId")
+    void deleteByUploadedById(@Param("userId") Integer userId);
+
 
 }

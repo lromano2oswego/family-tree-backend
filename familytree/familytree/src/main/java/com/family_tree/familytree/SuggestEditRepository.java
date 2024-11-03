@@ -37,4 +37,9 @@ public interface SuggestEditRepository extends CrudRepository<SuggestEdit, Integ
     @Query("SELECT se FROM SuggestEdit se WHERE se.member.familyTree.id = :treeId") //se means suggested edit
     List<SuggestEdit> findByTreeId(@Param("treeId") Integer treeId);
 
+    //For cascade deletion of a user
+    @Modifying
+    @Query("DELETE FROM SuggestEdit WHERE suggestedBy.id = :userId")
+    void deleteBySuggestedById(@Param("userId") Integer userId);
+
 }

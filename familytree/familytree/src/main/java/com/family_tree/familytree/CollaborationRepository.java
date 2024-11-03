@@ -47,4 +47,10 @@ public interface CollaborationRepository extends CrudRepository<Collaboration, I
     void updateCollaboratorToViewer(@Param("treeId") Integer treeId, @Param("userId") Integer userId);
 
 
+    //For cascade deletion of a user
+    @Modifying
+    @Query("DELETE FROM Collaboration WHERE user.id = :userId")
+    void deleteByUserId(@Param("userId") Integer userId);
+
+
 }
