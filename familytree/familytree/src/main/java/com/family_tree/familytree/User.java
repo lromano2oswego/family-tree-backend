@@ -22,6 +22,10 @@ public class User {
     @Column(name = "email_address", nullable = false, length = 200)  // Maps to "email_address", not null, max length 200
     private String email;
 
+
+    @Column(name = "access_token", length = 512)  // Adjust length as needed
+    private String accessToken;
+
     //Getters and setters
     public Integer getId() {
         return id;
@@ -46,4 +50,13 @@ public class User {
     public void setEmail(String email) {
         this.email = email;
     }
+
+    public String getAccessToken() {
+        return accessToken;
+    }
+
+    public void setAccessToken(String accessToken) {
+        this.accessToken = accessToken;
+    }
+
 }

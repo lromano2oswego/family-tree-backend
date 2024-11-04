@@ -23,13 +23,18 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         String email = (String) attributes.get("email");
         String username = (String) attributes.get("name");
-        userRepository.findByEmail(email).orElseGet(() -> {
+        String accessToken = userRequest.getAccessToken().getTokenValue();
+        System.out.println(accessToken);
+        User user = userRepository.findByEmail(email).orElseGet(() -> {
             User newUser = new User();
             newUser.setEmail(email);
             newUser.setUsername(username);
+            newUser.setAccessToken(accessToken);  // Set access token
             return userRepository.save(newUser);
         });
 
+        user.setAccessToken(accessToken);
+        userRepository.save(user);
         return oAuth2User;
     }
 }

@@ -13,16 +13,22 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 @RestController
+@RequestMapping("/api")
 public class AuthController {
 
 
     private final OAuth2AuthorizedClientService authorizedClientService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Autowired
     public AuthController(OAuth2AuthorizedClientService authorizedClientService) {
@@ -49,26 +55,33 @@ public class AuthController {
 //    }
 
     // New API endpoint for React frontend login
-    @GetMapping("/api/login")
+    @GetMapping("/login")
     public Map<String, Object> apiLogin(OAuth2AuthenticationToken authentication) {
         if (authentication == null) {
             throw new RuntimeException("User not authenticated");
         }
 
         OAuth2User oAuth2User = authentication.getPrincipal();
-        OAuth2AuthorizedClient authorizedClient = authorizedClientService.loadAuthorizedClient(
-                authentication.getAuthorizedClientRegistrationId(),
-                authentication.getName());
+        String email = oAuth2User.getAttribute("email");
 
-        String token = authorizedClient.getAccessToken().getTokenValue();
-        return Map.of(
-                "name", Objects.requireNonNull(oAuth2User.getAttribute("name")),
-                "email", Objects.requireNonNull(oAuth2User.getAttribute("email")),
-                "token", token
-        );
+        Optional<User> userOptional = userRepository.findByEmail(email);
+
+        if (userOptional.isPresent()) {
+            String accessToken = userOptional.get().getAccessToken();
+            String name = userOptional.get().getUsername();
+            assert email != null;
+            return Map.of(
+                    "name", name,
+                    "email", email,
+                    "token", accessToken
+            );
+        } else {
+            throw new RuntimeException("User not found");
+        }
     }
 
-    @GetMapping("/api/logout")
+
+    @GetMapping("/logout")
     public String logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
         if (authentication != null) {
             new SecurityContextLogoutHandler().logout(request, response, authentication);
