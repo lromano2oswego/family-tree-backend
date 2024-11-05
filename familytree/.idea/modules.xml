@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/familytree.iml" filepath="$PROJECT_DIR$/.idea/familytree.iml" />
+      <module fileurl="file://$PROJECT_DIR$/familytree/familytree.iml" filepath="$PROJECT_DIR$/familytree/familytree.iml" />
     </modules>
   </component>
 </project>
