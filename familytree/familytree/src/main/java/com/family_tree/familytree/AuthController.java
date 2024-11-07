@@ -76,7 +76,7 @@ public class AuthController {
                     "token", accessToken
             );
         } else {
-            throw new RuntimeException("User not found");
+            return Map.of ("error", "User not found");
         }
     }
 
