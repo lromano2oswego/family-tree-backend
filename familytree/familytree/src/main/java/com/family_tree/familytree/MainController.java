@@ -232,6 +232,47 @@ public class MainController {
                 .orElseThrow(() -> new RuntimeException("Family tree not found"));
     }
 
+    //Method to find all public trees
+    @GetMapping("/getPublicTrees")
+    public @ResponseBody Map<String, Object> getPublicTrees() {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            List<FamilyTree> publicTrees = familyTreeRepository.findByPrivacySetting(PrivacySetting.Public);
+
+            // Check if there are no public trees available
+            if (publicTrees.isEmpty()) {
+                response.put("status", "success");
+                response.put("message", "No public family trees available at this time.");
+                response.put("data", Collections.emptyList());
+                return response;
+            }
+
+            // Prepare the response data
+            List<Map<String, Object>> treeData = new ArrayList<>();
+            for (FamilyTree tree : publicTrees) {
+                Map<String, Object> treeInfo = new HashMap<>();
+                treeInfo.put("treeId", tree.getId());
+                treeInfo.put("treeName", tree.getTreeName());
+                treeInfo.put("ownerUsername", tree.getOwner().getUsername());
+                // Add more public fields if needed, while excluding sensitive information
+                treeData.add(treeInfo);
+            }
+
+            // Retrieval of public trees yields successful
+            response.put("status", "success");
+            response.put("message", "Public family trees retrieved successfully.");
+            response.put("data", treeData);
+            return response;
+
+        } catch (Exception e) {
+            // Handle any unexpected errors
+            response.put("status", "error");
+            response.put("message", "An error occurred while retrieving public family trees: " + e.getMessage());
+            response.put("data", Collections.emptyList());
+            return response;
+        }
+    }
+
     //Delete family tree by ID
     @PostMapping("/deleteFamilyTree")
     @Transactional // Ensures all deletions succeed or roll back together
