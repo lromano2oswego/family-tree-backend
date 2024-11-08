@@ -1,5 +1,6 @@
 package com.family_tree.familytree;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.util.Date;
 import com.family_tree.enums.Gender;
@@ -17,6 +18,7 @@ public class FamilyMember {
     private User owner;  // User who owns the family tree
 
     @ManyToOne
+    @JsonIgnore
     @JoinColumn(name = "tree_id")
     private FamilyTree familyTree;  // References the family tree
 

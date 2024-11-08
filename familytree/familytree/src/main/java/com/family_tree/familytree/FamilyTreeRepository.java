@@ -15,6 +15,9 @@ public interface FamilyTreeRepository extends CrudRepository<FamilyTree, Integer
     // Find all family trees by owner (user) ID
     List<FamilyTree> findByOwner_Id(Integer userId);
 
+    //Query for finding only public trees
+    List<FamilyTree> findByPrivacySetting(PrivacySetting privacySetting);
+
     //Update tree information (Name and privacy settings)
     @Modifying
     @Query("UPDATE FamilyTree SET treeName = :treeName, privacySetting = :privacySetting WHERE id = :id")
