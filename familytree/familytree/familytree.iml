@@ -152,5 +152,7 @@
     <orderEntry type="library" scope="TEST" name="Maven: org.testcontainers:database-commons:1.19.8" level="project" />
     <orderEntry type="library" name="Maven: org.springframework.boot:spring-boot-starter-security:3.3.4" level="project" />
     <orderEntry type="library" name="Maven: org.springframework:spring-aop:6.1.13" level="project" />
+    <orderEntry type="library" name="springframework.boot.spring.starter.oauth2.client" level="project" />
+    <orderEntry type="library" name="springframework.security.spring.oauth2.client" level="project" />
   </component>
 </module>
