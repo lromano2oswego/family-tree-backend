@@ -47,4 +47,7 @@ public class Notification {
     public void setRead(boolean read) { isRead = read; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
+
+    public void setTimestamp(LocalDateTime now) {
+    }
 }
