@@ -1,0 +1,59 @@
+POST http://localhost:8080/api/notifications/send
+User-Agent: IntelliJ HTTP Client/IntelliJ IDEA 2024.2.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+Accept: */*
+Cookie: JSESSIONID=E0A2C8618C6FA216CCACCFAE102B67C3
+cookie: __Host-GAPS=1:hn7jvxvq87PNXg3XTIhcgNJytj0JnQ:ufAwG5kTGhWiQjVL
+content-length: 0
+
+<> 2024-11-08T123025.200.html
+
+###
+
+GET http://localhost:8080/api/notifications/user/1
+User-Agent: IntelliJ HTTP Client/IntelliJ IDEA 2024.2.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+Accept: */*
+Cookie: JSESSIONID=E0A2C8618C6FA216CCACCFAE102B67C3
+cookie: __Host-GAPS=1:hn7jvxvq87PNXg3XTIhcgNJytj0JnQ:ufAwG5kTGhWiQjVL
+content-length: 0
+
+<> 2024-11-08T122921.200.html
+
+###
+
+GET http://localhost:8080/api/notifications
+Accept: application/json
+User-Agent: IntelliJ HTTP Client/IntelliJ IDEA 2024.2.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+Cookie: JSESSIONID=E0A2C8618C6FA216CCACCFAE102B67C3
+cookie: __Host-GAPS=1:hn7jvxvq87PNXg3XTIhcgNJytj0JnQ:ufAwG5kTGhWiQjVL
+content-length: 0
+
+<> 2024-11-08T121907.200.html
+
+###
+
+GET http://localhost:8080/api/notifications
+User-Agent: IntelliJ HTTP Client/IntelliJ IDEA 2024.2.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+Accept: */*
+Cookie: JSESSIONID=E0A2C8618C6FA216CCACCFAE102B67C3
+cookie: __Host-GAPS=1:hn7jvxvq87PNXg3XTIhcgNJytj0JnQ:ufAwG5kTGhWiQjVL
+content-length: 0
+
+<> 2024-11-08T121430.200.html
+
+###
+
+GET http://localhost:8080/api/notifications
+User-Agent: IntelliJ HTTP Client/IntelliJ IDEA 2024.2.3
+Accept-Encoding: br, deflate, gzip, x-gzip
+Accept: */*
+cookie: __Host-GAPS=1:hn7jvxvq87PNXg3XTIhcgNJytj0JnQ:ufAwG5kTGhWiQjVL
+content-length: 0
+
+<> 2024-11-08T121318.200.html
+
+###
+

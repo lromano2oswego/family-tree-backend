@@ -50,6 +50,9 @@ public class MainController {
     @Autowired
     private ExportService exportService;
 
+    @Autowired
+    private NotificationService notificationService;
+
     // User-related methods -----------------------------------------------------
     @PostMapping(path="/addUser") //Map only post requests
     public @ResponseBody String addNewUser (@RequestParam String username,
@@ -831,15 +834,12 @@ public class MainController {
         return collaborationRepository.findAll();
     }
 
-    // Endpoint to invite a user to collaborate on a family tree
-    @PostMapping("/inviteCollaborator")
+
+    // Modifying inviteCollaborator to send a notification when a user is invited
+    @PostMapping("/collaborations/invite")
     public @ResponseBody String inviteCollaborator(@RequestParam Integer treeId,
                                                    @RequestParam Integer userId,
                                                    @RequestParam Role role) {
-        if (treeId == null || userId == null || role == null) {
-            return "Tree ID, User ID, and Role are required.";
-        }
-
         try {
             FamilyTree familyTree = familyTreeRepository.findById(treeId)
                     .orElseThrow(() -> new RuntimeException("Family tree not found"));
@@ -863,6 +863,14 @@ public class MainController {
             collaboration.setStatus(Status.Pending);
 
             collaborationRepository.save(collaboration);
+
+            // Send notification to the invited user
+            notificationService.createNotification(
+                    user,
+                    "You have been invited to collaborate on the tree '" + familyTree.getTreeName() + "'",
+                    "/trees/" + treeId
+            );
+
             return "Collaboration invitation sent successfully.";
         } catch (Exception e) {
             return "Error inviting collaborator: " + e.getMessage();
@@ -1017,5 +1025,23 @@ public class MainController {
             return "Error exporting family tree: " + e.getMessage();
         }
     }
+    //notification-related methods -----------------------------------------------------------------
+    // Endpoint to retrieve all notifications for a specific user
+    @GetMapping("/notifications/{userId}")
+    public @ResponseBody List<Notification> getUserNotifications(@PathVariable Integer userId) {
+        return notificationService.getUserNotifications(userId);
+    }
+
+    // Endpoint to delete a notification by ID for a specific user
+    @DeleteMapping("/notifications/delete")
+    public @ResponseBody String deleteNotification(@RequestParam Integer userId, @RequestParam Integer notificationId) {
+        try {
+            notificationService.deleteNotification(userId, notificationId);
+            return "Notification deleted successfully.";
+        } catch (Exception e) {
+            return "Error deleting notification: " + e.getMessage();
+        }
+    }
+
 
 }
