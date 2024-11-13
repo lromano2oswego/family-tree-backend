@@ -1043,5 +1043,23 @@ public class MainController {
         }
     }
 
+    // Endpoint to manually create a notification for testing
+    @PostMapping("/notifications/add")
+    public @ResponseBody String addNotification(@RequestParam Integer userId,
+                                                @RequestParam String message,
+                                                @RequestParam String url) {
+        try {
+            // get the user by ID
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Create a new notification
+            notificationService.createNotification(user, message, url);
+            return "Notification created successfully.";
+        } catch (Exception e) {
+            return "Error creating notification: " + e.getMessage();
+        }
+    }
+
 
 }
