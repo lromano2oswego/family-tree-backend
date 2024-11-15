@@ -44,6 +44,11 @@ public class FamilyMember {
     @Column(nullable = false)
     private boolean isPrivate; // Indicates if the family member's information is private
 
+    // New fields for family relationships
+    private Integer pid;  // Parent (Father) ID
+    private Integer mid;  // Mother ID
+    private Integer fid;  // Spouse ID
+
     // Getters and Setters
 
     public Integer getMemberId() {
@@ -118,7 +123,35 @@ public class FamilyMember {
         this.additionalInfo = additionalInfo;
     }
 
-    public boolean isPrivate() { return isPrivate; }
+    public boolean isPrivate() {
+        return isPrivate;
+    }
 
-    public void setPrivate(boolean isPrivate) {this.isPrivate = isPrivate; }
+    public void setPrivate(boolean isPrivate) {
+        this.isPrivate = isPrivate;
+    }
+
+    public Integer getPid() {
+        return pid;
+    }
+
+    public void setPid(Integer pid) {
+        this.pid = pid;
+    }
+
+    public Integer getMid() {
+        return mid;
+    }
+
+    public void setMid(Integer mid) {
+        this.mid = mid;
+    }
+
+    public Integer getFid() {
+        return fid;
+    }
+
+    public void setFid(Integer fid) {
+        this.fid = fid;
+    }
 }

@@ -295,7 +295,7 @@ public class MainController {
         }
     }
 
-    //FamilyMember-related methods --------------------------------------------------------------------
+    // Add a new family member with optional pid, mid, and fid fields
     @PostMapping("/addFamilyMember")
     public @ResponseBody String addFamilyMember(@RequestParam String name,
                                                 @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date birthdate,
@@ -304,8 +304,11 @@ public class MainController {
                                                 @RequestParam Integer treeId,
                                                 @RequestParam Integer addedById,
                                                 @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date deathdate,
-                                                @RequestParam(required = false) String additionalInfo) {
-        //Ensure required fields are not left empty (additional info can be left empty)
+                                                @RequestParam(required = false) String additionalInfo,
+                                                @RequestParam(required = false) Integer pid,
+                                                @RequestParam(required = false) Integer mid,
+                                                @RequestParam(required = false) Integer fid) {
+        // Ensure required fields are not left empty
         if (name == null || name.isEmpty()) {
             return "Name is required.";
         }
@@ -335,7 +338,6 @@ public class MainController {
             User addedBy = userRepository.findById(addedById)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
-            //Create and add a family member to the tree
             FamilyMember familyMember = new FamilyMember();
             familyMember.setName(name);
             familyMember.setBirthdate(birthdate);
@@ -345,6 +347,9 @@ public class MainController {
             familyMember.setOwner(owner);
             familyMember.setAddedBy(addedBy);
             familyMember.setAdditionalInfo(additionalInfo);
+            familyMember.setPid(pid);
+            familyMember.setMid(mid);
+            familyMember.setFid(fid);
 
             familyMemberRepository.save(familyMember);
             return "Family Member Saved Successfully";
@@ -353,20 +358,21 @@ public class MainController {
         }
     }
 
-    //Method for updating/editing a family member
+    // Edit an existing family member, including pid, mid, and fid fields
     @PostMapping("/editFamilyMember")
     public @ResponseBody String editFamilyMember(@RequestParam Integer memberId,
                                                  @RequestParam(required = false) String name,
                                                  @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date birthdate,
                                                  @RequestParam(required = false) Gender gender,
                                                  @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date deathdate,
-                                                 @RequestParam(required = false) String additionalInfo) {
+                                                 @RequestParam(required = false) String additionalInfo,
+                                                 @RequestParam(required = false) Integer pid,
+                                                 @RequestParam(required = false) Integer mid,
+                                                 @RequestParam(required = false) Integer fid) {
         try {
-            // Find the existing family member
             FamilyMember familyMember = familyMemberRepository.findById(memberId)
                     .orElseThrow(() -> new RuntimeException("Family member not found"));
 
-            // Update only provided fields
             if (name != null && !name.isEmpty()) {
                 familyMember.setName(name);
             }
@@ -382,8 +388,16 @@ public class MainController {
             if (additionalInfo != null && !additionalInfo.isEmpty()) {
                 familyMember.setAdditionalInfo(additionalInfo);
             }
+            if (pid != null) {
+                familyMember.setPid(pid);
+            }
+            if (mid != null) {
+                familyMember.setMid(mid);
+            }
+            if (fid != null) {
+                familyMember.setFid(fid);
+            }
 
-            // Save the updated family member
             familyMemberRepository.save(familyMember);
             return "Family Member Updated Successfully";
         } catch (Exception e) {
@@ -391,41 +405,25 @@ public class MainController {
         }
     }
 
-    // Get details of a single family member by memberId
-    @GetMapping("/getFamilyMember")
-    public @ResponseBody FamilyMember getFamilyMember(@RequestParam Integer memberId) {
-        return familyMemberRepository.findById(memberId)
-                .orElseThrow(() -> new RuntimeException("Family member not found"));
-    }
-
-    // Get all family members in a specific family tree by treeId
+    // Retrieve all family members in a tree, including their relationships
     @GetMapping("/getFamilyMembersInTree")
     public @ResponseBody List<FamilyMember> getFamilyMembersInTree(@RequestParam Integer treeId) {
         return familyMemberRepository.findByFamilyTreeId(treeId);
     }
 
-    // Method to delete a family member by ID, with cascading deletions for related data
+    // Delete a family member, ensuring relationships are cleared
     @PostMapping("/deleteFamilyMember")
-    @Transactional // Ensure all deletions happen together or rollback on failure
+    @Transactional
     public @ResponseBody String deleteFamilyMember(@RequestParam Integer memberId) {
         try {
-            // Delete relationships where this family member is involved
             relationshipRepository.deleteByMemberId(memberId);
-
-            // Delete any attachments associated with this family member
-            attachmentRepository.deleteByMemberId(memberId);
-
-            // Delete any suggested edits related to this family member
-            suggestEditRepository.deleteByMemberId(memberId);
-
-            // Finally, delete the family member itself
             familyMemberRepository.deleteById(memberId);
-
             return "Family Member and all associated records deleted successfully";
         } catch (Exception e) {
             return "Error deleting family member and associated records: " + e.getMessage();
         }
     }
+
 
     //SuggestEdit-related methods -----------------------------------------------------
     @PostMapping("/addSuggestedEdit")
@@ -1031,18 +1029,6 @@ public class MainController {
     public @ResponseBody List<Notification> getUserNotifications(@PathVariable Integer userId) {
         return notificationService.getUserNotifications(userId);
     }
-
-    // Endpoint to delete a notification by ID for a specific user
-    @DeleteMapping("/notifications/delete")
-    public @ResponseBody String deleteNotification(@RequestParam Integer userId, @RequestParam Integer notificationId) {
-        try {
-            notificationService.deleteNotification(userId, notificationId);
-            return "Notification deleted successfully.";
-        } catch (Exception e) {
-            return "Error deleting notification: " + e.getMessage();
-        }
-    }
-
     // Endpoint to manually create a notification for testing
     @PostMapping("/notifications/add")
     public @ResponseBody String addNotification(@RequestParam Integer userId,
@@ -1058,6 +1044,17 @@ public class MainController {
             return "Notification created successfully.";
         } catch (Exception e) {
             return "Error creating notification: " + e.getMessage();
+        }
+    }
+
+    // Endpoint to delete a notification by ID for a specific user
+    @DeleteMapping("/notifications/delete")
+    public @ResponseBody String deleteNotification(@RequestParam Integer userId, @RequestParam Integer notificationId) {
+        try {
+            notificationService.deleteNotification(userId, notificationId);
+            return "Notification deleted successfully.";
+        } catch (Exception e) {
+            return "Error deleting notification: " + e.getMessage();
         }
     }
 
