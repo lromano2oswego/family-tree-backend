@@ -69,11 +69,13 @@ public class AuthController {
         if (userOptional.isPresent()) {
             String accessToken = userOptional.get().getAccessToken();
             String name = userOptional.get().getUsername();
+            Integer id =  userOptional.get().getId();
             assert email != null;
             return Map.of(
                     "name", name,
                     "email", email,
-                    "token", accessToken
+                    "token", accessToken,
+                    "id", id
             );
         } else {
             return Map.of ("error", "User not found");

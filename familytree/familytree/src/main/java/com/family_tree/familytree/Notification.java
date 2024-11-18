@@ -23,6 +23,10 @@ public class Notification {
 
     private boolean isRead = false;
 
+    @ManyToOne
+    @JoinColumn(name = "tree_id", nullable = false)
+    private FamilyTree treeId;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -50,4 +54,10 @@ public class Notification {
 
     public void setTimestamp(LocalDateTime now) {
     }
+
+    public void setTreeId(FamilyTree treeId) {
+        this.treeId = treeId;
+    }
+
+    public FamilyTree getTreeId() { return treeId; }
 }
