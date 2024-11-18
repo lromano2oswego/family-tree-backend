@@ -1128,7 +1128,7 @@ public class MainController {
         }
     }
 
-    //Merge Family Tree-related methods
+    //Merge Family Tree-related methods ------------------------------------------------------------
     //Request merge with another family tree
     @PostMapping("/requestMerge")
     public @ResponseBody String requestMerge(
