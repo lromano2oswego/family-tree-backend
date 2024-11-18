@@ -52,5 +52,6 @@ public interface CollaborationRepository extends CrudRepository<Collaboration, I
     @Query("DELETE FROM Collaboration WHERE user.id = :userId")
     void deleteByUserId(@Param("userId") Integer userId);
 
+    List<Collaboration> findByUserId(Integer userId);
 
 }

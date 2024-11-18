@@ -52,6 +52,8 @@ public class MainController {
 
     @Autowired
     private NotificationService notificationService;
+    @Autowired
+    private NotificationRepository notificationRepository;
 
     // User-related methods -----------------------------------------------------
     @PostMapping(path="/addUser") //Map only post requests
@@ -866,7 +868,7 @@ public class MainController {
             notificationService.createNotification(
                     user,
                     "You have been invited to collaborate on the tree '" + familyTree.getTreeName() + "'",
-                    "/trees/" + treeId
+                    "/trees/" + treeId, treeId
             );
 
             return "Collaboration invitation sent successfully.";
@@ -881,7 +883,11 @@ public class MainController {
         try {
             Collaboration collaboration = collaborationRepository.findById(collaborationId)
                     .orElseThrow(() -> new RuntimeException("Collaboration not found"));
-
+            User user = collaboration.getUser();
+            FamilyTree tree = collaboration.getFamilyTree();
+            Notification notification = notificationRepository.findByUser_IdAndTreeId_Id(user.getId(), tree.getId());
+            notification.setRead(true);
+            notificationRepository.save(notification);
             collaboration.setStatus(Status.Accepted);
             collaborationRepository.save(collaboration);
             return "Collaboration accepted.";
@@ -896,7 +902,11 @@ public class MainController {
         try {
             Collaboration collaboration = collaborationRepository.findById(collaborationId)
                     .orElseThrow(() -> new RuntimeException("Collaboration not found"));
-
+            User user = collaboration.getUser();
+            FamilyTree tree = collaboration.getFamilyTree();
+            Notification notification = notificationRepository.findByUser_IdAndTreeId_Id(user.getId(), tree.getId());
+            notification.setRead(true);
+            notificationRepository.save(notification);
             collaboration.setStatus(Status.Declined);
             collaborationRepository.save(collaboration);
             return "Collaboration declined.";
@@ -929,6 +939,16 @@ public class MainController {
                     .orElseThrow(() -> new RuntimeException("Collaboration not found"));
         } catch (Exception e) {
             throw new RuntimeException("Error retrieving collaboration: " + e.getMessage());
+        }
+    }
+
+    //Get collaboration by a collaboration id
+    @GetMapping("/getCollaborationByUser")
+    public @ResponseBody List<Collaboration> getCollaborationByUser(@RequestParam Integer userId) {
+        try {
+            return collaborationRepository.findByUserId(userId);
+        } catch (Exception e) {
+            throw new RuntimeException("Error retrieving collaborations: " + e.getMessage());
         }
     }
 
@@ -1033,14 +1053,15 @@ public class MainController {
     @PostMapping("/notifications/add")
     public @ResponseBody String addNotification(@RequestParam Integer userId,
                                                 @RequestParam String message,
-                                                @RequestParam String url) {
+                                                @RequestParam String url,
+                                                @RequestParam Integer treeId) {
         try {
             // get the user by ID
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
             // Create a new notification
-            notificationService.createNotification(user, message, url);
+            notificationService.createNotification(user, message, url, treeId);
             return "Notification created successfully.";
         } catch (Exception e) {
             return "Error creating notification: " + e.getMessage();
@@ -1058,5 +1079,46 @@ public class MainController {
         }
     }
 
+    @PostMapping("/inviteCollaborator")
+    public @ResponseBody String inviteCollaborator(@RequestParam Integer treeId,
+                                                   @RequestParam String userEmail,
+                                                   @RequestParam Role role) {
+        try {
+            // Fetch the FamilyTree and User
+            FamilyTree familyTree = familyTreeRepository.findById(treeId)
+                    .orElseThrow(() -> new RuntimeException("Family tree not found"));
+            User user = userRepository.findByEmail(userEmail)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Check if the user is already invited or a collaborator
+            Optional<Collaboration> existingCollaboration = collaborationRepository
+                    .findByFamilyTreeIdAndUserId(treeId, user.getId());
+            if (existingCollaboration.isPresent()) {
+                Collaboration collaboration = existingCollaboration.get();
+                if (collaboration.getStatus() == Status.Pending || collaboration.getStatus() == Status.Accepted) {
+                    return "User is already invited or a collaborator.";
+                }
+            }
+
+            // Create a new collaboration
+            Collaboration collaboration = new Collaboration();
+            collaboration.setFamilyTree(familyTree);
+            collaboration.setUser(user);
+            collaboration.setRole(role);
+            collaboration.setStatus(Status.Pending);
+            collaborationRepository.save(collaboration);
+
+            // Send notification to the invited user
+            notificationService.createNotification(
+                    user,
+                    "You have been invited to collaborate on the tree '" + familyTree.getTreeName() + "'.",
+                    "/trees/" + treeId, treeId
+            );
+
+            return "Collaboration invitation sent successfully.";
+        } catch (Exception e) {
+            return "Error inviting collaborator: " + e.getMessage();
+        }
+    }
 
 }

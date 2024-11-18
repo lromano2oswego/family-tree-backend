@@ -27,4 +27,6 @@ public interface FamilyTreeRepository extends CrudRepository<FamilyTree, Integer
     @Modifying
     @Query("DELETE FROM FamilyTree WHERE owner.id = :userId")
     void deleteByOwnerId(@Param("userId") Integer userId);
+
+    FamilyTree getFamilyTreeById(Integer id);
 }

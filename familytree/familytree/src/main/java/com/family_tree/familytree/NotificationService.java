@@ -9,13 +9,17 @@ import java.time.LocalDateTime;
 public class NotificationService {
     @Autowired
     private NotificationRepository notificationRepository;
+    @Autowired
+    private FamilyTreeRepository familyTreeRepository;
 
-    public void createNotification(User user, String message, String url) {
+    public void createNotification(User user, String message, String url, Integer treeId) {
+        FamilyTree familyTree = familyTreeRepository.getFamilyTreeById(treeId);
         Notification notification = new Notification();
         notification.setUser(user);
         notification.setMessage(message);
         notification.setUrl(url);
         notification.setTimestamp(LocalDateTime.now());
+        notification.setTreeId(familyTree);
         notificationRepository.save(notification);
     }
 
