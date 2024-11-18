@@ -52,8 +52,15 @@ public class MainController {
 
     @Autowired
     private NotificationService notificationService;
+
     @Autowired
     private NotificationRepository notificationRepository;
+
+    @Autowired
+    private FamilyTreeService familyTreeService;
+
+    @Autowired
+    private MergeRequestRepository mergeRequestRepository;
 
     // User-related methods -----------------------------------------------------
     @PostMapping(path="/addUser") //Map only post requests
@@ -1119,6 +1126,63 @@ public class MainController {
         } catch (Exception e) {
             return "Error inviting collaborator: " + e.getMessage();
         }
+    }
+
+    //Merge Family Tree-related methods
+    //Request merge with another family tree
+    @PostMapping("/requestMerge")
+    public @ResponseBody String requestMerge(
+            @RequestParam Integer requesterTreeId,
+            @RequestParam Integer targetTreeId,
+            @RequestParam Integer initiatorUserId) {
+        return familyTreeService.requestMerge(requesterTreeId, targetTreeId, initiatorUserId);
+    }
+
+
+    //Accept merge request
+    @PostMapping("/acceptMergeRequest")
+    public @ResponseBody String acceptMergeRequest(@RequestParam Integer mergeRequestId) {
+        return familyTreeService.acceptMergeRequest(mergeRequestId);
+    }
+
+    //Decline merge request
+    @PostMapping("/declineMergeRequest")
+    public @ResponseBody String declineMergeRequest(@RequestParam Integer mergeRequestId) {
+        return familyTreeService.declineMergeRequest(mergeRequestId);
+    }
+
+    //Get merge requests for a specific tree
+    @GetMapping("/getMergeRequests")
+    public @ResponseBody List<MergeRequest> getMergeRequests(@RequestParam Integer treeId) {
+        return mergeRequestRepository.findByTargetTree_Id(treeId);
+    }
+
+    //Get matching individuals
+    @GetMapping("/getMatches")
+    public @ResponseBody List<ConflictLog> getMatches(@RequestParam Integer treeId1, @RequestParam Integer treeId2) {
+        return familyTreeService.getMatchingMembers(treeId1, treeId2);
+    }
+
+    //Confirm match matches two trees and adds conflicts to the table
+    @PostMapping("/confirmMatch")
+    public @ResponseBody String confirmMatch(
+            @RequestParam Integer conflictId,
+            @RequestParam boolean isSamePerson) {
+        return familyTreeService.confirmMatch(conflictId, isSamePerson);
+    }
+
+    //Method to get conflicts by treeId and status ("Pending", "Accepted")
+    @GetMapping("/getConflictsByStatus")
+    public @ResponseBody List<ConflictLog> getConflictsByStatus(
+            @RequestParam Integer treeId,
+            @RequestParam String status) {
+        return familyTreeService.getConflictsByTreeIdAndStatus(treeId, status);
+    }
+
+    //Finalize Merge - Final step to merge trees after conflicts are delt with
+    @PostMapping("/finalizeMerge")
+    public @ResponseBody FamilyTree finalizeMerge(@RequestParam Integer treeId1, @RequestParam Integer treeId2) {
+        return familyTreeService.finalizeMerge(treeId1, treeId2);
     }
 
 }
