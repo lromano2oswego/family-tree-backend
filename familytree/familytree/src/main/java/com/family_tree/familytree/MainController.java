@@ -36,6 +36,9 @@ public class MainController {
     private SuggestEditRepository suggestEditRepository;
 
     @Autowired
+    private SuggestEditService suggestedEditService;
+
+    @Autowired
     private RelationshipRepository relationshipRepository;
 
     @Autowired
@@ -1184,5 +1187,135 @@ public class MainController {
     public @ResponseBody FamilyTree finalizeMerge(@RequestParam Integer treeId1, @RequestParam Integer treeId2) {
         return familyTreeService.finalizeMerge(treeId1, treeId2);
     }
+
+    // Suggested Edits-related methods -----------------------------------------------------------------
+    // Endpoint to create a suggested edit
+    @PostMapping("/suggestedEdits/create")
+    public @ResponseBody String createSuggestedEdit(
+            @RequestParam Integer memberId,
+            @RequestParam Integer suggestedById,
+            @RequestParam String fieldName,
+            @RequestParam String oldValue,
+            @RequestParam String newValue) {
+        try {
+            FamilyMember member = familyMemberRepository.findById(memberId)
+                    .orElseThrow(() -> new RuntimeException("Family member not found"));
+            User suggestedBy = userRepository.findById(suggestedById)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Create and save the suggested edit
+            SuggestEdit edit = new SuggestEdit();
+            edit.setFamilyMember(member);
+            edit.setSuggestedBy(suggestedBy);
+            edit.setFieldName(fieldName);
+            edit.setOldValue(oldValue);
+            edit.setNewValue(newValue);
+            edit.setSuggestionStatus(SuggestionStatus.Pending);
+
+            suggestedEditService.createSuggestedEdit(edit);
+            return "Suggested Edit Created Successfully";
+        } catch (Exception e) {
+            return "Error creating suggested edit: " + e.getMessage();
+        }
+    }
+
+    // Endpoint to update the status of a suggested edit (Accept or Decline)
+    @PostMapping("/suggestedEdits/updateStatus")
+    public @ResponseBody String updateEditStatus(@RequestParam Integer suggestionId,
+                                                 @RequestParam SuggestionStatus status) {
+        try {
+            suggestedEditService.updateSuggestedEditStatus(suggestionId, status);
+            return "Suggested Edit Status Updated";
+        } catch (Exception e) {
+            return "Error updating suggested edit status: " + e.getMessage();
+        }
+    }
+
+    // Method to accept a suggested edit and apply the change
+    @PostMapping("/suggestedEdits/accept")
+    @Transactional
+    public @ResponseBody String acceptSuggestedEdit(@RequestParam Integer suggestionId) {
+        try {
+            // Fetch the suggested edit
+            SuggestEdit suggestedEdit = suggestEditRepository.findById(suggestionId)
+                    .orElseThrow(() -> new RuntimeException("Suggested edit not found"));
+
+            // Fetch the family member associated with the suggested edit
+            FamilyMember familyMember = suggestedEdit.getFamilyMember();
+            if (familyMember == null) {
+                return "Error: No family member associated with this suggested edit.";
+            }
+
+            // Apply the suggested edit based on the fieldName
+
+            switch (suggestedEdit.getFieldName()) {
+                case "name":
+                    familyMember.setName(suggestedEdit.getNewValue());
+                    break;
+                case "birthdate":
+                    familyMember.setBirthdate(new SimpleDateFormat("yyyy-MM-dd").parse(suggestedEdit.getNewValue()));
+                    break;
+                case "deathdate":
+                    familyMember.setDeathdate(new SimpleDateFormat("yyyy-MM-dd").parse(suggestedEdit.getNewValue()));
+                    break;
+                case "gender":
+                    familyMember.setGender(Gender.valueOf(suggestedEdit.getNewValue()));
+                    break;
+                case "additionalInfo":
+                    familyMember.setAdditionalInfo(suggestedEdit.getNewValue());
+                    break;
+                default:
+                    return "Error: Unsupported field for suggested edit.";
+            }
+
+            // Save the updated family member
+            familyMemberRepository.save(familyMember);
+
+            // Mark the suggested edit as accepted
+            suggestedEdit.setSuggestionStatus(SuggestionStatus.Accepted);
+            suggestEditRepository.save(suggestedEdit);
+
+            return "Suggested edit accepted and applied.";
+        } catch (Exception e) {
+            return "Error applying suggested edit: " + e.getMessage();
+        }
+    }
+
+    // Method to decline a suggested edit (marks as declined)
+    @PostMapping("/suggestedEdits/decline")
+    @Transactional
+    public @ResponseBody String declineSuggestedEdit(@RequestParam Integer suggestionId) {
+        try {
+            SuggestEdit edit = suggestEditRepository.findById(suggestionId)
+                    .orElseThrow(() -> new RuntimeException("Suggested edit not found"));
+
+            edit.setSuggestionStatus(SuggestionStatus.Denied);
+            suggestEditRepository.save(edit);
+
+            return "Suggested edit declined successfully.";
+        } catch (Exception e) {
+            return "Error declining suggested edit: " + e.getMessage();
+        }
+    }
+
+    // Endpoint to get all suggested edits for a specific family tree
+    @GetMapping("/suggestedEdits/review")
+    public @ResponseBody List<SuggestEdit> reviewSuggestedEdits(@RequestParam Integer treeId) {
+        return suggestEditRepository.findByTreeId(treeId);
+    }
+
+    // Method to get all suggested edits for a specific family member
+    @GetMapping("/suggestedEdits/getByMember")
+    public @ResponseBody List<SuggestEdit> getSuggestedEditsForMember(@RequestParam Integer memberId) {
+        return suggestEditRepository.findByMember_MemberId(memberId);
+    }
+
+    // Method to get all suggested edits (for admin or review purposes)
+    @GetMapping("/suggestedEdits/all")
+    public @ResponseBody Iterable<SuggestEdit> getAllSuggestedEdits() {
+        return suggestEditRepository.findAll();
+    }
+
+
 
 }
