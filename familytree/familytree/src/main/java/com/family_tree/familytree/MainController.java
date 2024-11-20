@@ -309,49 +309,35 @@ public class MainController {
 
     // Add a new family member with optional pid, mid, and fid fields
     @PostMapping("/addFamilyMember")
-    public @ResponseBody Map<String, Object> addFamilyMember(@RequestParam String name,
-                                                             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date birthdate,
-                                                             @RequestParam Gender gender,
-                                                             @RequestParam Integer userId,
-                                                             @RequestParam Integer treeId,
-                                                             @RequestParam Integer addedById,
-                                                             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date deathdate,
-                                                             @RequestParam(required = false) String additionalInfo,
-                                                             @RequestParam(required = false) Integer pid,
-                                                             @RequestParam(required = false) Integer mid,
-                                                             @RequestParam(required = false) Integer fid) {
-        Map<String, Object> response = new HashMap<>();
-
+    public @ResponseBody String addFamilyMember(@RequestParam String name,
+                                                @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") Date birthdate,
+                                                @RequestParam Gender gender,
+                                                @RequestParam Integer userId,
+                                                @RequestParam Integer treeId,
+                                                @RequestParam Integer addedById,
+                                                @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date deathdate,
+                                                @RequestParam(required = false) String additionalInfo,
+                                                @RequestParam(required = false) Integer pid,
+                                                @RequestParam(required = false) Integer mid,
+                                                @RequestParam(required = false) Integer fid) {
         // Ensure required fields are not left empty
         if (name == null || name.isEmpty()) {
-            response.put("status", "error");
-            response.put("message", "Name is required.");
-            return response;
+            return "Name is required.";
         }
         if (birthdate == null) {
-            response.put("status", "error");
-            response.put("message", "Birthdate is required.");
-            return response;
+            return "Birthdate is required.";
         }
         if (gender == null) {
-            response.put("status", "error");
-            response.put("message", "Gender is required.");
-            return response;
+            return "Gender is required.";
         }
         if (userId == null) {
-            response.put("status", "error");
-            response.put("message", "User ID is required.");
-            return response;
+            return "User ID is required.";
         }
         if (treeId == null) {
-            response.put("status", "error");
-            response.put("message", "Tree ID is required.");
-            return response;
+            return "Tree ID is required.";
         }
         if (addedById == null) {
-            response.put("status", "error");
-            response.put("message", "Added By ID is required.");
-            return response;
+            return "Added By ID is required.";
         }
 
         try {
@@ -377,18 +363,10 @@ public class MainController {
             familyMember.setMid(mid);
             familyMember.setFid(fid);
 
-            familyMember = familyMemberRepository.save(familyMember); // Save and get the persisted entity
-
-            // Build the success response
-            response.put("status", "success");
-            response.put("message", "Family Member Saved Successfully");
-            response.put("memberId", familyMember.getMemberId()); // Include the memberId in the response
-
-            return response;
+            familyMemberRepository.save(familyMember);
+            return "Family Member Saved Successfully";
         } catch (Exception e) {
-            response.put("status", "error");
-            response.put("message", "Error saving family member: " + e.getMessage());
-            return response;
+            return "Error saving family member: " + e.getMessage();
         }
     }
 
