@@ -2,7 +2,6 @@ package com.family_tree.familytree;
 
 import com.family_tree.enums.SuggestionStatus;
 import jakarta.persistence.*;
-import java.util.Date;
 
 @Entity
 @Table(name = "suggested_edits")
@@ -12,31 +11,33 @@ public class SuggestEdit {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer suggestionId;
 
-    // Reference to the family member being edited
     @ManyToOne
-    @JoinColumn(name = "member_id", foreignKey = @ForeignKey(name = "fk_member_suggested_edit"))
-    private FamilyMember member;
+    @JoinColumn(name = "member_id", foreignKey = @ForeignKey(name = "fk_member_edit"))
+    private FamilyMember familyMember;
 
-    // User who suggested the edit
     @ManyToOne
-    @JoinColumn(name = "suggested_by", foreignKey = @ForeignKey(name = "fk_user_suggested_edit"))
+    @JoinColumn(name = "suggested_by", foreignKey = @ForeignKey(name = "fk_user_edit"))
     private User suggestedBy;
 
-    @Column(length = 100)
-    private String fieldName;  // Name of the field being edited
+    @Column(length = 100, nullable = false)
+    private String fieldName; // Name of the field being edited
 
-    @Column(length = 2000)
-    private String oldValue;   // Value being changed
+    @Column(length = 2000, nullable = false)
+    private String oldValue; // Value being changed
 
-    @Column(length = 2000)
-    private String newValue;   // New value provided by the user
+    @Column(length = 2000, nullable = false)
+    private String newValue; // New value suggested
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "ENUM('Pending', 'Accepted', 'Denied')")
+    @Column(nullable = false) // Ensure a value is always provided
     private SuggestionStatus suggestionStatus = SuggestionStatus.Pending;
 
-    // Getters and Setters
+    // Constructor to initialize default values
+    public SuggestEdit() {
+        this.suggestionStatus = SuggestionStatus.Pending;
+    }
 
+    // Getters and Setters
     public Integer getSuggestionId() {
         return suggestionId;
     }
@@ -45,12 +46,12 @@ public class SuggestEdit {
         this.suggestionId = suggestionId;
     }
 
-    public FamilyMember getMember() {
-        return member;
+    public FamilyMember getFamilyMember() {
+        return familyMember;
     }
 
-    public void setMember(FamilyMember member) {
-        this.member = member;
+    public void setFamilyMember(FamilyMember familyMember) {
+        this.familyMember = familyMember;
     }
 
     public User getSuggestedBy() {
@@ -85,11 +86,8 @@ public class SuggestEdit {
         this.newValue = newValue;
     }
 
-    public SuggestionStatus getSuggestionStatus() {
-        return suggestionStatus;
-    }
-
     public void setSuggestionStatus(SuggestionStatus suggestionStatus) {
         this.suggestionStatus = suggestionStatus;
     }
 }
+  
