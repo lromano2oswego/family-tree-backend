@@ -1193,13 +1193,13 @@ public class MainController {
     // Endpoint to get all suggested edits for a specific family tree
     @GetMapping("/suggestedEdits/review")
     public @ResponseBody List<SuggestEdit> reviewSuggestedEdits(@RequestParam Integer treeId) {
-        return suggestEditRepository.findByTreeId(treeId);
+        return suggestEditRepository.findByFamilyMember_FamilyTree_Id(treeId);
     }
 
     // Method to get all suggested edits for a specific family member
     @GetMapping("/suggestedEdits/getByMember")
     public @ResponseBody List<SuggestEdit> getSuggestedEditsForMember(@RequestParam Integer memberId) {
-        return suggestEditRepository.findByMember_MemberId(memberId);
+        return suggestEditRepository.findByFamilyMember_MemberId(memberId);
     }
 
     // Method to get all suggested edits (for admin or review purposes)
