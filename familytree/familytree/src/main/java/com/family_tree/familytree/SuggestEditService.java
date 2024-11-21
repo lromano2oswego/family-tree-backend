@@ -46,7 +46,7 @@ public class SuggestEditService {
 
     // Method to find all suggested edits for a specific family member
     public List<SuggestEdit> getEditsForFamilyMember(Integer memberId) {
-        return suggestEditRepository.findByFamilyMember_Id(memberId);
+        return suggestEditRepository.findByFamilyMember_MemberId(memberId);
     }
 
 
