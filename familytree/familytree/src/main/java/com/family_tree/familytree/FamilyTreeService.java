@@ -29,10 +29,6 @@ public class FamilyTreeService {
 
     // Mapping for old member IDs to new member IDs during the merge
     private Map<Integer, Integer> idMapping = new HashMap<>();
-
-    // Reverse mapping: New member ID -> Set of old member IDs
-    private Map<Integer, Set<Integer>> reverseMapping = new HashMap<>();
-
     /**
      * Initiates a merge request between two family trees.
      */
@@ -91,12 +87,17 @@ public class FamilyTreeService {
         mergedTree.setTreeName(tree1.getTreeName() + " & " + tree2.getTreeName());
         mergedTree.setPrivacySetting(PrivacySetting.Private);
         mergedTree.setOwner(tree1.getOwner());
+
         familyTreeRepository.save(mergedTree);
+
+        // Maintain a mapping of old IDs to new IDs for merged members
+        Map<Integer, Integer> idMapping = new HashMap<>();
 
         // Process conflicts and merge members
         List<ConflictLog> allConflicts = conflictLogRepository.findByTreeId(treeId1);
         for (ConflictLog conflict : allConflicts) {
             if (conflict.getStatus().equals(Status.Accepted.toString())) {
+                // Merge accepted members
                 FamilyMember member1 = familyMemberRepository.findById(conflict.getMember1Id())
                         .orElseThrow(() -> new RuntimeException("Member 1 not found"));
                 Optional<FamilyMember> member2Opt = familyMemberRepository.findById(conflict.getMember2Id());
@@ -105,25 +106,21 @@ public class FamilyTreeService {
                     mergeMembers(member1, member2);
                     member1.setFamilyTree(mergedTree);
                     familyMemberRepository.save(member1);
-
-                    // Add to ID mapping
                     idMapping.put(member2.getMemberId(), member1.getMemberId());
-
                     familyMemberRepository.delete(member2);
                 }
             } else if (conflict.getStatus().equals(Status.Declined.toString())) {
+                // Add both individuals as separate entries
                 FamilyMember member1 = familyMemberRepository.findById(conflict.getMember1Id())
                         .orElseThrow(() -> new RuntimeException("Member 1 not found"));
                 FamilyMember newMember1 = createNewMemberInMergedTree(member1, mergedTree);
                 familyMemberRepository.save(newMember1);
-                idMapping.put(member1.getMemberId(), newMember1.getMemberId());
 
                 Optional<FamilyMember> member2Opt = familyMemberRepository.findById(conflict.getMember2Id());
                 if (member2Opt.isPresent()) {
                     FamilyMember member2 = member2Opt.get();
                     FamilyMember newMember2 = createNewMemberInMergedTree(member2, mergedTree);
                     familyMemberRepository.save(newMember2);
-                    idMapping.put(member2.getMemberId(), newMember2.getMemberId());
                 }
             }
         }
@@ -134,15 +131,11 @@ public class FamilyTreeService {
             if (!isMemberInTree(member, mergedTree)) {
                 FamilyMember newMember = createNewMemberInMergedTree(member, mergedTree);
                 familyMemberRepository.save(newMember);
-                idMapping.put(member.getMemberId(), newMember.getMemberId());
             }
         }
 
-        System.out.println("ID Mapping:");
-        idMapping.forEach((oldId, newId) -> System.out.println("Old ID: " + oldId + ", New ID: " + newId));
-
-        // Update relationships in the merged tree
-        updateRelationships(mergedTree);
+        // Update relationships for merged members
+        updateMergedRelationships(mergedTree, idMapping);
 
         // Merge collaborators
         mergeCollaborations(tree1, tree2, mergedTree);
@@ -170,52 +163,75 @@ public class FamilyTreeService {
         newMember.setAdditionalInfo(originalMember.getAdditionalInfo());
         newMember.setFamilyTree(mergedTree);
 
-        // Map relationships using idMapping
-        Integer pid = originalMember.getPid() != null ? idMapping.get(originalMember.getPid()) : null;
-        Integer mid = originalMember.getMid() != null ? idMapping.get(originalMember.getMid()) : null;
-        Integer fid = originalMember.getFid() != null ? idMapping.get(originalMember.getFid()) : null;
+        // Update relationships using the ID mapping
+        if (originalMember.getPid() != null && idMapping.containsKey(originalMember.getPid())) {
+            newMember.setPid(idMapping.get(originalMember.getPid()));
+        }
 
-        System.out.println("Mapping relationships for new member: " + newMember.getName());
-        System.out.println("Mapped PID: " + pid + ", MID: " + mid + ", FID: " + fid);
+        if (originalMember.getFid() != null && idMapping.containsKey(originalMember.getFid())) {
+            newMember.setFid(idMapping.get(originalMember.getFid()));
+        }
 
-        newMember.setPid(pid);
-        newMember.setMid(mid);
-        newMember.setFid(fid);
+        if (originalMember.getMid() != null && idMapping.containsKey(originalMember.getMid())) {
+            newMember.setMid(idMapping.get(originalMember.getMid()));
+        }
 
-        FamilyMember savedMember = familyMemberRepository.save(newMember);
-        idMapping.put(originalMember.getMemberId(), savedMember.getMemberId());
-        return savedMember;
+        familyMemberRepository.save(newMember);
+        idMapping.put(originalMember.getMemberId(), newMember.getMemberId());
+
+        // Copy attachments
+        copyAttachments(originalMember, newMember);
+
+        return newMember;
     }
+
 
     /**
      * Method to update collaborations to the merged tree
      */
+
     private void mergeCollaborations(FamilyTree tree1, FamilyTree tree2, FamilyTree mergedTree) {
-        List<Collaboration> tree1Collaborators = Optional.ofNullable(collaborationRepository.findByFamilyTreeId(tree1.getId())).orElse(new ArrayList<>());
-        List<Collaboration> tree2Collaborators = Optional.ofNullable(collaborationRepository.findByFamilyTreeId(tree2.getId())).orElse(new ArrayList<>());
+        try {
+            // Fetch collaborators from both trees, handling potential empty lists
+            List<Collaboration> tree1Collaborators = Optional.ofNullable(collaborationRepository.findByFamilyTreeId(tree1.getId())).orElse(new ArrayList<>());
+            List<Collaboration> tree2Collaborators = Optional.ofNullable(collaborationRepository.findByFamilyTreeId(tree2.getId())).orElse(new ArrayList<>());
 
-        List<Collaboration> mergedCollaborators = new ArrayList<>(tree1Collaborators);
+            List<Collaboration> mergedCollaborators = new ArrayList<>(tree1Collaborators);
 
-        for (Collaboration collaborator : tree2Collaborators) {
-            if (mergedCollaborators.stream().noneMatch(c -> c.getUser().getId().equals(collaborator.getUser().getId()))) {
-                mergedCollaborators.add(collaborator);
+            // Add collaborators from tree2, avoiding duplicates
+            for (Collaboration collaborator : tree2Collaborators) {
+                if (mergedCollaborators.stream().noneMatch(c -> c.getUser().getId().equals(collaborator.getUser().getId()))) {
+                    mergedCollaborators.add(collaborator);
+                }
             }
-        }
 
-        for (Collaboration collaborator : mergedCollaborators) {
-            Collaboration newCollaboration = new Collaboration();
-            newCollaboration.setUser(collaborator.getUser());
-            newCollaboration.setFamilyTree(mergedTree);
-            newCollaboration.setRole(collaborator.getRole());
-            collaborationRepository.save(newCollaboration);
-        }
+            // Save each collaborator to the merged tree, checking for database issues
+            for (Collaboration collaborator : mergedCollaborators) {
+                try {
+                    Collaboration newCollaboration = new Collaboration();
+                    newCollaboration.setUser(collaborator.getUser());
+                    newCollaboration.setFamilyTree(mergedTree);
+                    newCollaboration.setRole(collaborator.getRole()); // Preserve role
+                    collaborationRepository.save(newCollaboration);
+                } catch (Exception e) {
+                    System.err.println("Error saving collaboration for user " + collaborator.getUser().getId() + ": " + e.getMessage());
+                }
+            }
 
-        if (!tree2.getOwner().getId().equals(tree1.getOwner().getId())) {
-            Collaboration ownerCollaboration = new Collaboration();
-            ownerCollaboration.setUser(tree2.getOwner());
-            ownerCollaboration.setFamilyTree(mergedTree);
-            ownerCollaboration.setRole(Role.Owner);
-            collaborationRepository.save(ownerCollaboration);
+            // Add tree2's owner as collaborator if they are not the owner of tree1
+            if (!tree2.getOwner().getId().equals(tree1.getOwner().getId())) {
+                try {
+                    Collaboration ownerCollaboration = new Collaboration();
+                    ownerCollaboration.setUser(tree2.getOwner());
+                    ownerCollaboration.setFamilyTree(mergedTree);
+                    ownerCollaboration.setRole(Role.Owner); // Assign role as Owner
+                    collaborationRepository.save(ownerCollaboration);
+                } catch (Exception e) {
+                    System.err.println("Error saving owner collaboration for tree2's owner: " + e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error merging collaborations for trees " + tree1.getId() + " and " + tree2.getId() + ": " + e.getMessage());
         }
     }
 
@@ -258,6 +274,7 @@ public class FamilyTreeService {
         return conflictLogRepository.findByTreeIdAndStatus(treeId, status);
     }
 
+
     /**
      * Creates a conflict log entry for fully matching members to be resolved
      */
@@ -269,9 +286,11 @@ public class FamilyTreeService {
 
         for (FamilyMember member1 : tree1Members) {
             for (FamilyMember member2 : tree2Members) {
-                if (membersAreIdentical(member1, member2)) {
+                if (membersAreIdentical(member1, member2)) {  // Use identical matching logic
                     ConflictLog match = createConflictLog(treeId1, member1, member2);
                     matches.add(match);
+
+                    // Save each match to the ConflictLog repository
                     conflictLogRepository.save(match);
                 }
             }
@@ -294,14 +313,15 @@ public class FamilyTreeService {
             FamilyMember member2 = familyMemberRepository.findById(conflict.getMember2Id())
                     .orElseThrow(() -> new RuntimeException("Member 2 not found"));
 
+            // Merge member2 into member1
             mergeMembers(member1, member2);
             familyMemberRepository.delete(member2); // Delete duplicate
             familyMemberRepository.save(member1);
 
-            conflict.setStatus(Status.Accepted.toString());
+            conflict.setStatus(Status.Accepted.toString()); // Convert enum to String
             conflict.setNotes("Merged into member " + member1.getMemberId());
         } else {
-            conflict.setStatus(Status.Declined.toString());
+            conflict.setStatus(Status.Declined.toString()); // Convert enum to String
             conflict.setNotes("Conflict rejected by user.");
         }
 
@@ -313,7 +333,6 @@ public class FamilyTreeService {
      * Merges information from member2 into member1.
      */
     private void mergeMembers(FamilyMember member1, FamilyMember member2) {
-        // Merge additional info and death date
         if (member1.getAdditionalInfo() == null && member2.getAdditionalInfo() != null) {
             member1.setAdditionalInfo(member2.getAdditionalInfo());
         }
@@ -321,21 +340,14 @@ public class FamilyTreeService {
             member1.setDeathdate(member2.getDeathdate());
         }
 
-        // Retain attachments
+        // Retain only one attachment between member1 and member2
         retainSingleAttachment(member1, member2);
 
-        // Merge relationships (use the more complete data)
-        member1.setPid(member1.getPid() != null ? member1.getPid() : member2.getPid());
-        member1.setMid(member1.getMid() != null ? member1.getMid() : member2.getMid());
-        member1.setFid(member1.getFid() != null ? member1.getFid() : member2.getFid());
-
-        // Save merged member
+        // Save the updated member1 after merging
         familyMemberRepository.save(member1);
 
-        // Update mappings
-        idMapping.put(member2.getMemberId(), member1.getMemberId());
-        reverseMapping.computeIfAbsent(member1.getMemberId(), k -> new HashSet<>())
-                .addAll(Arrays.asList(member1.getMemberId(), member2.getMemberId()));
+        // Delete member2 after reassigning data
+        familyMemberRepository.delete(member2);
     }
 
     /**
@@ -345,16 +357,18 @@ public class FamilyTreeService {
         List<Attachment> member1Attachments = attachmentRepository.findByMember_MemberId(member1.getMemberId());
         List<Attachment> member2Attachments = attachmentRepository.findByMember_MemberId(member2.getMemberId());
 
+        // Retain only one attachment (you can customize the selection logic here)
         Attachment retainedAttachment = null;
 
         if (!member1Attachments.isEmpty()) {
-            retainedAttachment = member1Attachments.get(0);
+            retainedAttachment = member1Attachments.get(0); // Keep the first attachment of member1
         } else if (!member2Attachments.isEmpty()) {
-            retainedAttachment = member2Attachments.get(0);
-            retainedAttachment.setMember(member1);
+            retainedAttachment = member2Attachments.get(0); // If member1 has no attachments, keep member2's first
+            retainedAttachment.setMember(member1); // Reassign it to member1
             attachmentRepository.save(retainedAttachment);
         }
 
+        // Remove all other attachments associated with member1 and member2
         for (Attachment attachment : member1Attachments) {
             if (!attachment.equals(retainedAttachment)) {
                 attachmentRepository.delete(attachment);
@@ -365,6 +379,21 @@ public class FamilyTreeService {
         }
     }
 
+
+    /**
+     * Method to copy attachments and add it to the new family member
+     */
+    private void copyAttachments(FamilyMember sourceMember, FamilyMember targetMember) {
+        List<Attachment> sourceAttachments = attachmentRepository.findByMember_MemberId(sourceMember.getMemberId());
+        for (Attachment attachment : sourceAttachments) {
+            Attachment newAttachment = new Attachment();
+            newAttachment.setMember(targetMember);
+            newAttachment.setTypeOfFile(attachment.getTypeOfFile());
+            newAttachment.setFileData(attachment.getFileData());
+            newAttachment.setUploadedBy(attachment.getUploadedBy()); // Keep original uploader
+            attachmentRepository.save(newAttachment);
+        }
+    }
 
     /**
      * Gathers unique family members across two trees, excluding duplicates.
@@ -392,70 +421,31 @@ public class FamilyTreeService {
     }
 
     /**
-     * Method for updating relationships
-    */
-    private void updateRelationships(FamilyTree mergedTree) {
-        List<FamilyMember> members = familyMemberRepository.findByFamilyTreeId(mergedTree.getId());
+     *Method to update only merged relationships
+     */
+    private void updateMergedRelationships(FamilyTree mergedTree, Map<Integer, Integer> idMapping) {
+        for (Map.Entry<Integer, Integer> entry : idMapping.entrySet()) {
+            Integer oldId = entry.getKey();
+            Integer newId = entry.getValue();
 
-        // First pass: Populate idMapping and reverseMapping
-        for (FamilyMember member : members) {
-            idMapping.put(member.getMemberId(), member.getMemberId());
-            reverseMapping.computeIfAbsent(member.getMemberId(), k -> new HashSet<>()).add(member.getMemberId());
+            FamilyMember mergedMember = familyMemberRepository.findById(newId)
+                    .orElseThrow(() -> new RuntimeException("Merged member not found"));
+
+            FamilyMember oldMember = familyMemberRepository.findById(oldId)
+                    .orElseThrow(() -> new RuntimeException("Original member not found"));
+
+            // Update relationships
+            if (oldMember.getPid() != null && idMapping.containsKey(oldMember.getPid())) {
+                mergedMember.setPid(idMapping.get(oldMember.getPid()));
+            }
+            if (oldMember.getFid() != null && idMapping.containsKey(oldMember.getFid())) {
+                mergedMember.setFid(idMapping.get(oldMember.getFid()));
+            }
+            if (oldMember.getMid() != null && idMapping.containsKey(oldMember.getMid())) {
+                mergedMember.setMid(idMapping.get(oldMember.getMid()));
+            }
+
+            familyMemberRepository.save(mergedMember);
         }
-
-        // Second pass: Update relationships
-        for (FamilyMember member : members) {
-            System.out.println("Updating relationships for member: " + member.getName() + " (ID: " + member.getMemberId() + ")");
-
-            // Update PID
-            if (member.getPid() != null) {
-                Integer newPid = resolveNewId(member.getPid());
-                if (newPid != null) {
-                    member.setPid(newPid);
-                    System.out.println("Updated PID for " + member.getName() + " to " + newPid);
-                } else {
-                    System.out.println("PID mapping missing for old ID: " + member.getPid());
-                }
-            }
-
-            // Update MID
-            if (member.getMid() != null) {
-                Integer newMid = resolveNewId(member.getMid());
-                if (newMid != null) {
-                    member.setMid(newMid);
-                    System.out.println("Updated MID for " + member.getName() + " to " + newMid);
-                } else {
-                    System.out.println("MID mapping missing for old ID: " + member.getMid());
-                }
-            }
-
-            // Update FID
-            if (member.getFid() != null) {
-                Integer newFid = resolveNewId(member.getFid());
-                if (newFid != null) {
-                    member.setFid(newFid);
-                    System.out.println("Updated FID for " + member.getName() + " to " + newFid);
-
-                    // Handle reciprocal update for spouse
-                    FamilyMember spouse = familyMemberRepository.findById(newFid)
-                            .orElseThrow(() -> new RuntimeException("Spouse not found for FID: " + newFid));
-                    if (spouse.getFid() == null || !spouse.getFid().equals(member.getMemberId())) {
-                        spouse.setFid(member.getMemberId());
-                        familyMemberRepository.save(spouse);
-                        System.out.println("Reciprocally updated FID for spouse " + spouse.getName() + " to " + member.getMemberId());
-                    }
-                } else {
-                    System.out.println("FID mapping missing for old ID: " + member.getFid());
-                }
-            }
-
-            // Save updated member
-            familyMemberRepository.save(member);
-        }
-    }
-
-    // Helper method to resolve the new ID from reverseMapping
-    private Integer resolveNewId(Integer oldId) {
-        return idMapping.get(oldId);
     }
 }
