@@ -172,39 +172,55 @@ public class MainController {
         }
     }
 
-    // FamilyTree-related methods --------------------------------------------------------
     @PostMapping("/createFamilyTree")
-    public @ResponseBody String addFamilyTree(@RequestParam String treeName,
-                                              @RequestParam PrivacySetting privacySetting,
-                                              @RequestParam Integer userId) {
-        //Ensure fields are not empty
-        if (treeName == null || treeName.isEmpty()) {
-            return "Tree name is required.";
-        }
-        if (privacySetting == null) {
-            return "Privacy setting is required.";
-        }
-        if (userId == null) {
-            return "User ID is required.";
-        }
-
+    public @ResponseBody Map<String, Object> addFamilyTree(@RequestParam String treeName,
+                                                           @RequestParam PrivacySetting privacySetting,
+                                                           @RequestParam Integer userId) {
+        Map<String, Object> response = new HashMap<>();
         try {
-            //Find the user that will own the tree
+            if (treeName == null || treeName.isEmpty()) {
+                response.put("error", "Tree name is required.");
+                return response;
+            }
+            if (privacySetting == null) {
+                response.put("error", "Privacy setting is required.");
+                return response;
+            }
+            if (userId == null) {
+                response.put("error", "User ID is required.");
+                return response;
+            }
+
+            // Find the user that will own the tree
             User owner = userRepository.findById(userId)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
-            //Create and add tree information to the database
+            // Create and save the family tree
             FamilyTree familyTree = new FamilyTree();
             familyTree.setTreeName(treeName);
             familyTree.setPrivacySetting(privacySetting);
             familyTree.setOwner(owner);
+            familyTree = familyTreeRepository.save(familyTree);
 
-            familyTreeRepository.save(familyTree);
-            return "Family Tree Saved Successfully";
+            // Add the owner as a collaborator with the Owner role
+            Collaboration collaboration = new Collaboration();
+            collaboration.setFamilyTree(familyTree);
+            collaboration.setUser(owner);
+            collaboration.setRole(Role.Owner);
+            collaboration.setStatus(Status.Accepted); // Automatically accepted for owner
+            collaborationRepository.save(collaboration);
+
+            // Return the newly created tree ID
+            response.put("success", "Family Tree Saved Successfully");
+            response.put("treeId", familyTree.getId());
+            return response;
         } catch (Exception e) {
-            return "Error saving family tree: " + e.getMessage();
+            response.put("error", "Error saving family tree: " + e.getMessage());
+            return response;
         }
     }
+
+
 
     //Update family tree and privacy settings (user decides to edit tree information)
     @PostMapping("/updateFamilyTree")
