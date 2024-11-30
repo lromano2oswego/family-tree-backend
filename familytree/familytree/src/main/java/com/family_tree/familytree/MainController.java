@@ -870,11 +870,22 @@ public class MainController {
         }
     }
 
-    // Endpoint to retrieve collaborations for a specific family tree
     @GetMapping("/getCollaborationsByTree")
-    public @ResponseBody List<Collaboration> getCollaborationsByTree(@RequestParam Integer treeId) {
-        return collaborationRepository.findByFamilyTreeId(treeId);
+    public @ResponseBody List<Map<String, Object>> getCollaborationsByTree(@RequestParam Integer treeId) {
+        List<Collaboration> collaborations = collaborationRepository.findByFamilyTreeId(treeId);
+
+        // Map the collaborations to a simplified structure with username, role, and status
+        return collaborations.stream()
+                .map(collaboration -> {
+                    Map<String, Object> collaborationDetails = new HashMap<>();
+                    collaborationDetails.put("username", collaboration.getUser().getUsername());
+                    collaborationDetails.put("role", collaboration.getRole());
+                    collaborationDetails.put("status", collaboration.getStatus());
+                    return collaborationDetails;
+                })
+                .collect(Collectors.toList());
     }
+
 
     // Endpoint to remove a collaborator
     @PostMapping("/removeCollaborator")
