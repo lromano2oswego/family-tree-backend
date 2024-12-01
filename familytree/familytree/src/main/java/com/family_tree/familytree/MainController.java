@@ -468,6 +468,7 @@ public class MainController {
         try {
             relationshipRepository.deleteByMemberId(memberId);
             familyMemberRepository.deleteById(memberId);
+            attachmentRepository.deleteByMemberId(memberId);
             return "Family Member and all associated records deleted successfully";
         } catch (Exception e) {
             return "Error deleting family member and associated records: " + e.getMessage();
@@ -581,23 +582,32 @@ public class MainController {
 
     //Attachment-related methods -----------------------------------------------------------------
     @PostMapping("/addAttachment")
-    public @ResponseBody String addAttachment(
+    public @ResponseBody Map<String, Object> addAttachment(
             @RequestParam Integer memberId,
             @RequestParam String typeOfFile,
             @RequestParam MultipartFile fileData, // MultipartFile to handle binary data upload
             @RequestParam Integer uploadedById) {
-        //Ensure required fields are not left empty
+        Map<String, Object> response = new HashMap<>();
+
         if (memberId == null) {
-            return "Member ID is required.";
+            response.put("status", "Error");
+            response.put("message", "Member ID is required.");
+            return response;
         }
         if (typeOfFile == null || typeOfFile.isEmpty()) {
-            return "Type of file is required.";
+            response.put("status", "Error");
+            response.put("message", "Type of file is required.");
+            return response;
         }
         if (fileData == null || fileData.isEmpty()) {
-            return "File data is required.";
+            response.put("status", "Error");
+            response.put("message", "File data is required.");
+            return response;
         }
         if (uploadedById == null) {
-            return "Uploaded By ID is required.";
+            response.put("status", "Error");
+            response.put("message", "Uploaded By ID is required.");
+            return response;
         }
 
         try {
@@ -611,15 +621,25 @@ public class MainController {
             Attachment attachment = new Attachment();
             attachment.setMember(member);
             attachment.setTypeOfFile(typeOfFile);
-            attachment.setFileData(fileData.getBytes());// Set the file data from the MultipartFile input
+            attachment.setFileData(fileData.getBytes()); // Set the file data from the MultipartFile input
             attachment.setUploadedBy(uploadedBy);
 
-            attachmentRepository.save(attachment);
-            return "Attachment Saved Successfully";
+            // Save the attachment and get the saved entity
+            Attachment savedAttachment = attachmentRepository.save(attachment);
+
+            // Return success response with the mediaId
+            response.put("status", "Success");
+            response.put("message", "Attachment Saved Successfully");
+            response.put("mediaId", savedAttachment.getMediaId());
+            return response;
         } catch (IOException e) {
-            return "Error reading file data: " + e.getMessage();
+            response.put("status", "Error");
+            response.put("message", "Error reading file data: " + e.getMessage());
+            return response;
         } catch (Exception e) {
-            return "Error saving attachment: " + e.getMessage();
+            response.put("status", "Error");
+            response.put("message", "Error saving attachment: " + e.getMessage());
+            return response;
         }
     }
 
@@ -1165,28 +1185,6 @@ public class MainController {
                 return "Error: No family member associated with this suggested edit.";
             }
 
-            // Apply the suggested edit based on the fieldName
-
-            switch (suggestedEdit.getFieldName()) {
-                case "name":
-                    familyMember.setName(suggestedEdit.getNewValue());
-                    break;
-                case "birthdate":
-                    familyMember.setBirthdate(new SimpleDateFormat("yyyy-MM-dd").parse(suggestedEdit.getNewValue()));
-                    break;
-                case "deathdate":
-                    familyMember.setDeathdate(new SimpleDateFormat("yyyy-MM-dd").parse(suggestedEdit.getNewValue()));
-                    break;
-                case "gender":
-                    familyMember.setGender(Gender.valueOf(suggestedEdit.getNewValue()));
-                    break;
-                case "additionalInfo":
-                    familyMember.setAdditionalInfo(suggestedEdit.getNewValue());
-                    break;
-                default:
-                    return "Error: Unsupported field for suggested edit.";
-            }
-
             // Save the updated family member
             familyMemberRepository.save(familyMember);
 
@@ -1208,15 +1206,14 @@ public class MainController {
             SuggestEdit edit = suggestEditRepository.findById(suggestionId)
                     .orElseThrow(() -> new RuntimeException("Suggested edit not found"));
 
-            edit.setSuggestionStatus(SuggestionStatus.Denied);
-            suggestEditRepository.save(edit);
+            // Delete the suggested edit
+            suggestEditRepository.delete(edit);
 
-            return "Suggested edit declined successfully.";
+            return "Suggested edit declined and removed successfully.";
         } catch (Exception e) {
             return "Error declining suggested edit: " + e.getMessage();
         }
     }
-
     // Endpoint to get all suggested edits for a specific family tree
     @GetMapping("/suggestedEdits/review")
     public @ResponseBody List<SuggestEdit> reviewSuggestedEdits(@RequestParam Integer treeId) {
