@@ -8,7 +8,6 @@ import java.util.stream.Collectors;
 import com.family_tree.enums.Gender;
 import com.family_tree.enums.PrivacySetting;
 import com.family_tree.enums.SuggestionStatus;
-import com.family_tree.enums.RelationshipType;
 import com.family_tree.enums.Role;
 import com.family_tree.enums.Status;
 import jakarta.transaction.Transactional;
