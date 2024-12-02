@@ -11,6 +11,7 @@ import com.family_tree.enums.SuggestionStatus;
 import com.family_tree.enums.RelationshipType;
 import com.family_tree.enums.Role;
 import com.family_tree.enums.Status;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -1137,6 +1138,7 @@ public class MainController {
             @RequestParam String oldValue,
             @RequestParam String newValue) {
         try {
+            // Fetch the family member and the user suggesting the edit
             FamilyMember member = familyMemberRepository.findById(memberId)
                     .orElseThrow(() -> new RuntimeException("Family member not found"));
             User suggestedBy = userRepository.findById(suggestedById)
@@ -1152,6 +1154,18 @@ public class MainController {
             edit.setSuggestionStatus(SuggestionStatus.Pending);
 
             suggestedEditService.createSuggestedEdit(edit);
+
+            // Notify the tree owner about the new suggested edit
+            FamilyTree familyTree = member.getFamilyTree();
+            User owner = familyTree.getOwner();
+            notificationService.createNotification(
+                    owner,
+                    "A new suggested edit for a member in your tree '" + familyTree.getTreeName() + "' has been created by "
+                            + suggestedBy.getUsername() + ".",
+                    "/trees/" + familyTree.getId(),
+                    familyTree.getId()
+            );
+
             return "Suggested Edit Created Successfully";
         } catch (Exception e) {
             return "Error creating suggested edit: " + e.getMessage();
@@ -1169,8 +1183,6 @@ public class MainController {
             return "Error updating suggested edit status: " + e.getMessage();
         }
     }
-
-    // Method to accept a suggested edit and apply the change
     @PostMapping("/suggestedEdits/accept")
     @Transactional
     public @ResponseBody String acceptSuggestedEdit(@RequestParam Integer suggestionId) {
@@ -1185,18 +1197,53 @@ public class MainController {
                 return "Error: No family member associated with this suggested edit.";
             }
 
+            ObjectMapper objectMapper = new ObjectMapper();
+            Map<String, String> newValues = objectMapper.readValue(suggestedEdit.getNewValue(), Map.class);
+
+            // Update fields if they exist and are not null
+            if (newValues.containsKey("name") && newValues.get("name") != null) {
+                familyMember.setName(newValues.get("name"));
+            }
+            if (newValues.containsKey("birthdate") && newValues.get("birthdate") != null) {
+                familyMember.setBirthdate(new SimpleDateFormat("yyyy-MM-dd").parse(newValues.get("birthdate")));
+            }
+            if (newValues.containsKey("gender") && newValues.get("gender") != null) {
+                // Capitalize gender's first letter and ensure it's valid
+                String genderValue = newValues.get("gender");
+                String capitalizedGender = genderValue.substring(0, 1).toUpperCase() + genderValue.substring(1).toLowerCase();
+                familyMember.setGender(Gender.valueOf(capitalizedGender));
+            }
+            if (newValues.containsKey("deathdate") && newValues.get("deathdate") != null) {
+                familyMember.setDeathdate(new SimpleDateFormat("yyyy-MM-dd").parse(newValues.get("deathdate")));
+            }
+            if (newValues.containsKey("additionalInfo") && newValues.get("additionalInfo") != null) {
+                familyMember.setAdditionalInfo(newValues.get("additionalInfo"));
+            }
+
             // Save the updated family member
             familyMemberRepository.save(familyMember);
 
-            // Mark the suggested edit as accepted
-            suggestedEdit.setSuggestionStatus(SuggestionStatus.Accepted);
-            suggestEditRepository.save(suggestedEdit);
+            // Notify the owner of the tree
+            FamilyTree familyTree = familyMember.getFamilyTree();
+            User owner = familyTree.getOwner();
+            notificationService.createNotification(
+                    owner,
+                    "A suggested edit for a member in your tree '" + familyTree.getTreeName() + "' has been accepted.",
+                    "/trees/" + familyTree.getId(),
+                    familyTree.getId()
+            );
 
-            return "Suggested edit accepted and applied.";
+            // Delete the suggested edit after applying it
+            suggestEditRepository.delete(suggestedEdit);
+
+            return "Suggested edit accepted, applied, and deleted.";
+        } catch (ParseException e) {
+            return "Error parsing date: " + e.getMessage();
         } catch (Exception e) {
             return "Error applying suggested edit: " + e.getMessage();
         }
     }
+
 
     // Method to decline a suggested edit (marks as declined)
     @PostMapping("/suggestedEdits/decline")
