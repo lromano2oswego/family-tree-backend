@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import com.family_tree.enums.Gender;
 import com.family_tree.enums.PrivacySetting;
 import com.family_tree.enums.SuggestionStatus;
+import com.family_tree.enums.RelationshipType;
 import com.family_tree.enums.Role;
 import com.family_tree.enums.Status;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +38,9 @@ public class MainController {
 
     @Autowired
     private SuggestEditService suggestedEditService;
+
+    @Autowired
+    private RelationshipRepository relationshipRepository;
 
     @Autowired
     private AttachmentRepository attachmentRepository;
@@ -305,6 +309,9 @@ public class MainController {
             // Delete all family members associated with this tree
             familyMemberRepository.deleteByTreeId(treeId);
 
+            // Delete all relationships associated with this tree
+            relationshipRepository.deleteByTreeId(treeId);
+
             // Delete all collaborations associated with this tree
             collaborationRepository.deleteByTreeId(treeId);
 
@@ -460,11 +467,117 @@ public class MainController {
     @Transactional
     public @ResponseBody String deleteFamilyMember(@RequestParam Integer memberId) {
         try {
+            relationshipRepository.deleteByMemberId(memberId);
             familyMemberRepository.deleteById(memberId);
             attachmentRepository.deleteByMemberId(memberId);
             return "Family Member and all associated records deleted successfully";
         } catch (Exception e) {
             return "Error deleting family member and associated records: " + e.getMessage();
+        }
+    }
+
+
+    
+    // Relationship-related methods ------------------------------------------------------------------
+    @PostMapping("/addRelationship")
+    public @ResponseBody String addRelationship(@RequestParam Integer treeId,
+                                                @RequestParam Integer member1Id,
+                                                @RequestParam Integer member2Id,
+                                                @RequestParam RelationshipType relationship) {
+        //Ensure required fields are not left empty
+        if (treeId == null) {
+            return "Tree ID is required.";
+        }
+        if (member1Id == null) {
+            return "Member 1 ID is required.";
+        }
+        if (member2Id == null) {
+            return "Member 2 ID is required.";
+        }
+        if (relationship == null) {
+            return "Relationship type is required.";
+        }
+
+        try {
+            FamilyTree familyTree = familyTreeRepository.findById(treeId)
+                    .orElseThrow(() -> new RuntimeException("Family tree not found"));
+
+            FamilyMember member1 = familyMemberRepository.findById(member1Id)
+                    .orElseThrow(() -> new RuntimeException("Family member 1 not found"));
+
+            FamilyMember member2 = familyMemberRepository.findById(member2Id)
+                    .orElseThrow(() -> new RuntimeException("Family member 2 not found"));
+
+            //Add relationship to the database
+            Relationship rel = new Relationship(); //rel refers to relationship
+            rel.setFamilyTree(familyTree);
+            rel.setMember1(member1);
+            rel.setMember2(member2);
+            rel.setRelationship(relationship);
+
+            relationshipRepository.save(rel);
+            return "Relationship Saved Successfully";
+        } catch (Exception e) {
+            return "Error saving relationship: " + e.getMessage();
+        }
+    }
+
+    //Method for updating relationship
+    @PostMapping("/updateRelationship")
+    public @ResponseBody String updateRelationship(
+            @RequestParam Integer relationshipId,
+            @RequestParam(required = false) Integer member1Id,
+            @RequestParam(required = false) Integer member2Id,
+            @RequestParam(required = false) RelationshipType relationshipType) {
+        try {
+            Relationship relationship = relationshipRepository.findById(relationshipId)
+                    .orElseThrow(() -> new RuntimeException("Relationship not found"));
+
+            // Update member1 if provided
+            if (member1Id != null) {
+                FamilyMember member1 = familyMemberRepository.findById(member1Id)
+                        .orElseThrow(() -> new RuntimeException("Member 1 not found"));
+                relationship.setMember1(member1);
+            }
+
+            // Update member2 if provided
+            if (member2Id != null) {
+                FamilyMember member2 = familyMemberRepository.findById(member2Id)
+                        .orElseThrow(() -> new RuntimeException("Member 2 not found"));
+                relationship.setMember2(member2);
+            }
+
+            // Update relationship type if provided
+            if (relationshipType != null) {
+                relationship.setRelationship(relationshipType);
+            }
+
+            relationshipRepository.save(relationship);
+            return "Relationship Updated Successfully";
+        } catch (Exception e) {
+            return "Error updating relationship: " + e.getMessage();
+        }
+    }
+
+    //Get relationships on a tree
+    @GetMapping("/getRelationshipsForTree")
+    public @ResponseBody List<Relationship> getRelationshipsForTree(@RequestParam Integer treeId) {
+        try {
+            return relationshipRepository.findByFamilyTreeId(treeId);
+        } catch (Exception e) {
+            throw new RuntimeException("Error retrieving relationships for the tree: " + e.getMessage());
+        }
+    }
+
+    //Delete relationships by a specific family member
+    @PostMapping("/deleteRelationshipsByMember")
+    @Transactional
+    public @ResponseBody String deleteRelationshipsByMember(@RequestParam Integer memberId) {
+        try {
+            relationshipRepository.deleteByMemberId(memberId);
+            return "Relationships for member deleted successfully.";
+        } catch (Exception e) {
+            return "Error deleting relationships for member: " + e.getMessage();
         }
     }
 
