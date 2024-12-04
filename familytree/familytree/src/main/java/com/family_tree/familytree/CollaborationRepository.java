@@ -54,4 +54,5 @@ public interface CollaborationRepository extends CrudRepository<Collaboration, I
 
     List<Collaboration> findByUserId(Integer userId);
 
+
 }

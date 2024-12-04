@@ -477,7 +477,7 @@ public class MainController {
     }
 
 
-    
+
     // Relationship-related methods ------------------------------------------------------------------
     @PostMapping("/addRelationship")
     public @ResponseBody String addRelationship(@RequestParam Integer treeId,
@@ -818,15 +818,13 @@ public class MainController {
 
     // Endpoint for the invited user to accept the collaboration invite
     @PostMapping("/acceptCollaboration")
-    public @ResponseBody String acceptCollaboration(@RequestParam Integer collaborationId) {
+    public @ResponseBody String acceptCollaboration(@RequestParam Integer notificationId,  @RequestParam Integer userId) {
         try {
-            Collaboration collaboration = collaborationRepository.findById(collaborationId)
+            Notification notification = notificationRepository.findById(notificationId)
+                    .orElseThrow(() -> new RuntimeException("Notification not found"));
+            Collaboration collaboration = collaborationRepository.findByFamilyTreeIdAndUserId(notification.getTreeId().getId(), userId)
                     .orElseThrow(() -> new RuntimeException("Collaboration not found"));
-            User user = collaboration.getUser();
-            FamilyTree tree = collaboration.getFamilyTree();
-            Notification notification = notificationRepository.findByUser_IdAndTreeId_Id(user.getId(), tree.getId());
-            notification.setRead(true);
-            notificationRepository.save(notification);
+            notificationRepository.deleteById(notificationId);
             collaboration.setStatus(Status.Accepted);
             collaborationRepository.save(collaboration);
             return "Collaboration accepted.";
@@ -837,15 +835,13 @@ public class MainController {
 
     // Endpoint for the invited user to decline the collaboration invite
     @PostMapping("/declineCollaboration")
-    public @ResponseBody String declineCollaboration(@RequestParam Integer collaborationId) {
+    public @ResponseBody String declineCollaboration(@RequestParam Integer notificationId, @RequestParam Integer userId) {
         try {
-            Collaboration collaboration = collaborationRepository.findById(collaborationId)
+            Notification notification = notificationRepository.findById(notificationId)
+                    .orElseThrow(() -> new RuntimeException("Notification not found"));
+            Collaboration collaboration = collaborationRepository.findByFamilyTreeIdAndUserId(notification.getTreeId().getId(), userId)
                     .orElseThrow(() -> new RuntimeException("Collaboration not found"));
-            User user = collaboration.getUser();
-            FamilyTree tree = collaboration.getFamilyTree();
-            Notification notification = notificationRepository.findByUser_IdAndTreeId_Id(user.getId(), tree.getId());
-            notification.setRead(true);
-            notificationRepository.save(notification);
+            notificationRepository.deleteById(notification.getId());
             collaboration.setStatus(Status.Declined);
             collaborationRepository.save(collaboration);
             return "Collaboration declined.";

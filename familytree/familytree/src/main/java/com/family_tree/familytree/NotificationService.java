@@ -30,4 +30,5 @@ public class NotificationService {
     public void deleteNotification(Integer userId, Integer notificationId) {
         notificationRepository.deleteByUserIdAndId(userId, notificationId);
     }
+
 }
