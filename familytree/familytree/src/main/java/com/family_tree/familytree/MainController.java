@@ -1070,20 +1070,44 @@ public class MainController {
     //Merge Family Tree-related methods ------------------------------------------------------------
     //Request merge with another family tree
     @PostMapping("/requestMerge")
-    public @ResponseBody String requestMerge(
+    public @ResponseBody Integer requestMerge(
             @RequestParam Integer requesterTreeId,
             @RequestParam Integer targetTreeId,
             @RequestParam Integer initiatorUserId) {
 
-        String response = familyTreeService.requestMerge(requesterTreeId, targetTreeId, initiatorUserId);
-        User targetTreeOwner = familyTreeService.getTreeOwner(targetTreeId);
+        // Retrieve required entities
+        FamilyTree requesterTree = familyTreeRepository.findById(requesterTreeId)
+                .orElseThrow(() -> new RuntimeException("Requester tree not found"));
+        FamilyTree targetTree = familyTreeRepository.findById(targetTreeId)
+                .orElseThrow(() -> new RuntimeException("Target tree not found"));
+        User initiator = userRepository.findById(initiatorUserId)
+                .orElseThrow(() -> new RuntimeException("Initiator not found"));
+
+        // Create and save the merge request
+        MergeRequest mergeRequest = new MergeRequest();
+        mergeRequest.setRequesterTree(requesterTree);
+        mergeRequest.setTargetTree(targetTree);
+        mergeRequest.setInitiator(initiator);
+        mergeRequest.setStatus("Pending");
+
+        mergeRequest = mergeRequestRepository.save(mergeRequest);
+
+        // Notify the target tree owner
+        User targetTreeOwner = targetTree.getOwner();
         if (targetTreeOwner != null) {
             String message = "A merge request has been initiated for your family tree.";
-            String url = "/merge-requests"; // Link to the merge requests page
+            String url = mergeRequest.getId().toString(); // Include merge request ID in the notification
             notificationService.createNotification(targetTreeOwner, message, url, targetTreeId);
         }
 
-        return response;
+        // Return the newly created merge request ID
+        return mergeRequest.getId();
+    }
+
+    @GetMapping("/getMergeDetails")
+    public @ResponseBody MergeRequest getMergeDetails(@RequestParam Integer mergeRequestId) {
+        return mergeRequestRepository.findById(mergeRequestId)
+                .orElseThrow(() -> new RuntimeException("Merge request not found"));
     }
 
 
@@ -1231,12 +1255,6 @@ public class MainController {
             // Notify the owner of the tree
             FamilyTree familyTree = familyMember.getFamilyTree();
             User owner = familyTree.getOwner();
-            notificationService.createNotification(
-                    owner,
-                    "A suggested edit for a member in your tree '" + familyTree.getTreeName() + "' has been accepted.",
-                    "/trees/" + familyTree.getId(),
-                    familyTree.getId()
-            );
 
             // Delete the suggested edit after applying it
             suggestEditRepository.delete(suggestedEdit);
