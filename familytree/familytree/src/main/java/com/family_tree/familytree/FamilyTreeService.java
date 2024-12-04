@@ -394,7 +394,17 @@ public class FamilyTreeService {
             attachmentRepository.save(newAttachment);
         }
     }
-
+    /**
+     * Retrieves the owner of a specific family tree.
+     *
+     * @param treeId The ID of the family tree.
+     * @return The owner of the family tree.
+     */
+    public User getTreeOwner(Integer treeId) {
+        FamilyTree tree = familyTreeRepository.findById(treeId)
+                .orElseThrow(() -> new RuntimeException("Family tree not found"));
+        return tree.getOwner();
+    }
     /**
      * Gathers unique family members across two trees, excluding duplicates.
      */

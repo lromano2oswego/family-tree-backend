@@ -1078,7 +1078,16 @@ public class MainController {
             @RequestParam Integer requesterTreeId,
             @RequestParam Integer targetTreeId,
             @RequestParam Integer initiatorUserId) {
-        return familyTreeService.requestMerge(requesterTreeId, targetTreeId, initiatorUserId);
+
+        String response = familyTreeService.requestMerge(requesterTreeId, targetTreeId, initiatorUserId);
+        User targetTreeOwner = familyTreeService.getTreeOwner(targetTreeId);
+        if (targetTreeOwner != null) {
+            String message = "A merge request has been initiated for your family tree.";
+            String url = "/merge-requests"; // Link to the merge requests page
+            notificationService.createNotification(targetTreeOwner, message, url, targetTreeId);
+        }
+
+        return response;
     }
 
 
