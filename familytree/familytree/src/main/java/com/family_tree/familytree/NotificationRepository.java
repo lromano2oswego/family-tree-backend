@@ -8,7 +8,6 @@ import java.util.List;
 public interface NotificationRepository extends JpaRepository<Notification, Integer> {
     List<Notification> findByUserIdAndIsReadFalse(Integer userId);
     void deleteByUserIdAndId(Integer userId, Integer notificationId);
-
     Notification findByUser_IdAndTreeId_Id(Integer userId, Integer treeId);
-
+    void deleteById(Integer notificationId);
 }
