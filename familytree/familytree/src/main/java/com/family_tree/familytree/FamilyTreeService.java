@@ -224,7 +224,7 @@ public class FamilyTreeService {
                     Collaboration ownerCollaboration = new Collaboration();
                     ownerCollaboration.setUser(tree2.getOwner());
                     ownerCollaboration.setFamilyTree(mergedTree);
-                    ownerCollaboration.setRole(Role.Owner); // Assign role as Owner
+                    ownerCollaboration.setRole(Role.Editor); // Assign role as Owner
                     collaborationRepository.save(ownerCollaboration);
                 } catch (Exception e) {
                     System.err.println("Error saving owner collaboration for tree2's owner: " + e.getMessage());

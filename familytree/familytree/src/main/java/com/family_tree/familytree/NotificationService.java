@@ -2,8 +2,10 @@ package com.family_tree.familytree;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 import java.time.LocalDateTime;
+
 //handle the logic of creating,retrieving and deleting notifications
 @Service
 public class NotificationService {

@@ -301,21 +301,29 @@ public class MainController {
         }
     }
 
-    //Delete family tree by ID
     @PostMapping("/deleteFamilyTree")
     @Transactional // Ensures all deletions succeed or roll back together
     public @ResponseBody String deleteFamilyTree(@RequestParam Integer treeId) {
         try {
-            // Delete all family members associated with this tree
+            // Step 1: Delete notifications associated with this tree
+            notificationRepository.deleteByTreeId(treeId);
+
+            // Step 2: Delete all family members and their associated attachments
+            List<FamilyMember> familyMembers = familyMemberRepository.findByFamilyTreeId(treeId);
+            for (FamilyMember member : familyMembers) {
+                attachmentRepository.deleteByMemberId(member.getMemberId());
+            }
             familyMemberRepository.deleteByTreeId(treeId);
 
-            // Delete all relationships associated with this tree
+            // Step 3: Delete all relationships associated with this tree
             relationshipRepository.deleteByTreeId(treeId);
 
-            // Delete all collaborations associated with this tree
+            // Step 4: Delete all collaborations associated with this tree
             collaborationRepository.deleteByTreeId(treeId);
+            mergeRequestRepository.deleteByTargetTreeId(treeId);
+            mergeRequestRepository.deleteByRequesterTreeId(treeId);
 
-            // Delete the family tree itself
+            // Step 5: Finally, delete the family tree itself
             familyTreeRepository.deleteById(treeId);
 
             return "Family Tree and all associated records deleted successfully";
@@ -323,6 +331,7 @@ public class MainController {
             return "Error deleting family tree and associated records: " + e.getMessage();
         }
     }
+
 
     // Add a new family member with optional pid, mid, and fid fields
     @PostMapping("/addFamilyMember")
