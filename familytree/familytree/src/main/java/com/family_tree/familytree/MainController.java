@@ -1124,9 +1124,25 @@ public class MainController {
     }
 
     @GetMapping("/getMergeDetails")
-    public @ResponseBody MergeRequest getMergeDetails(@RequestParam Integer mergeRequestId) {
-        return mergeRequestRepository.findById(mergeRequestId)
+    public @ResponseBody Map<String, Object> getMergeDetails(@RequestParam Integer mergeRequestId) {
+        MergeRequest mergeRequest = mergeRequestRepository.findById(mergeRequestId)
                 .orElseThrow(() -> new RuntimeException("Merge request not found"));
+
+        // Extract the required details
+        Map<String, Object> mergeDetails = new HashMap<>();
+        mergeDetails.put("mergeRequestId", mergeRequest.getId());
+        mergeDetails.put("requesterTreeId", mergeRequest.getRequesterTree().getId()); // Add requester tree ID
+        mergeDetails.put("targetTreeId", mergeRequest.getTargetTree().getId()); // Add target tree ID
+        mergeDetails.put("requesterTreeName", mergeRequest.getRequesterTree().getTreeName());
+        mergeDetails.put("targetTreeName", mergeRequest.getTargetTree().getTreeName());
+        mergeDetails.put("initiatorUsername", mergeRequest.getInitiator().getUsername());
+        mergeDetails.put("requesterTreeOwnerUsername", mergeRequest.getRequesterTree().getOwner().getUsername());
+        mergeDetails.put("targetTreeOwnerUsername", mergeRequest.getTargetTree().getOwner().getUsername());
+        mergeDetails.put("status", mergeRequest.getStatus());
+        mergeDetails.put("requestedAt", mergeRequest.getRequestedAt());
+        mergeDetails.put("resolvedAt", mergeRequest.getResolvedAt());
+
+        return mergeDetails;
     }
 
 
@@ -1148,11 +1164,42 @@ public class MainController {
         return mergeRequestRepository.findByTargetTree_Id(treeId);
     }
 
-    //Get matching individuals
     @GetMapping("/getMatches")
-    public @ResponseBody List<ConflictLog> getMatches(@RequestParam Integer treeId1, @RequestParam Integer treeId2) {
-        return familyTreeService.getMatchingMembers(treeId1, treeId2);
+    public @ResponseBody List<Map<String, Object>> getMatches(@RequestParam Integer treeId1, @RequestParam Integer treeId2) {
+        // Fetch conflicts from the service
+        List<ConflictLog> conflicts = familyTreeService.getMatchingMembers(treeId1, treeId2);
+
+        // Transform conflicts into a list of maps with detailed information
+        return conflicts.stream().map(conflict -> {
+            Map<String, Object> conflictDetails = new HashMap<>();
+
+            // Add conflict metadata
+            conflictDetails.put("conflictId", conflict.getId());
+            conflictDetails.put("status", conflict.getStatus());
+            conflictDetails.put("notes", conflict.getNotes());
+
+            // Add details for member1
+            Map<String, Object> member1Details = new HashMap<>();
+            member1Details.put("id", conflict.getMember1Id());
+            member1Details.put("name", conflict.getMember1Name());
+            member1Details.put("birthdate", conflict.getMember1Birthdate());
+            member1Details.put("deathdate", conflict.getMember1Deathdate());
+            member1Details.put("additionalInfo", conflict.getMember1AdditionalInfo());
+            conflictDetails.put("member1", member1Details);
+
+            // Add details for member2
+            Map<String, Object> member2Details = new HashMap<>();
+            member2Details.put("id", conflict.getMember2Id());
+            member2Details.put("name", conflict.getMember2Name());
+            member2Details.put("birthdate", conflict.getMember2Birthdate());
+            member2Details.put("deathdate", conflict.getMember2Deathdate());
+            member2Details.put("additionalInfo", conflict.getMember2AdditionalInfo());
+            conflictDetails.put("member2", member2Details);
+
+            return conflictDetails;
+        }).collect(Collectors.toList());
     }
+
 
     //Confirm match matches two trees and adds conflicts to the table
     @PostMapping("/confirmMatch")
