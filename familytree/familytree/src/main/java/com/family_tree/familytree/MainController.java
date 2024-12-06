@@ -783,7 +783,6 @@ public class MainController {
     }
 
 
-    // Modifying inviteCollaborator to send a notification when a user is invited
     @PostMapping("/collaborations/invite")
     public @ResponseBody String inviteCollaborator(@RequestParam Integer treeId,
                                                    @RequestParam Integer userId,
@@ -1033,6 +1032,17 @@ public class MainController {
             return "Error deleting notification: " + e.getMessage();
         }
     }
+    @DeleteMapping("/notifications/deleteById")
+    public @ResponseBody String deleteNotificationById(@RequestParam Integer notificationId) {
+        try {
+            notificationRepository.deleteById(notificationId);
+            return "Notification deleted successfully.";
+        } catch (Exception e) {
+            e.printStackTrace(); // Log the error for debugging
+            return "Error deleting notification: " + e.getMessage();
+        }
+    }
+
 
     @PostMapping("/inviteCollaborator")
     public @ResponseBody String inviteCollaborator(@RequestParam Integer treeId,
